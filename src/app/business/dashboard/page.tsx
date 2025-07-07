@@ -1,0 +1,340 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { Button } from '@/components/ui/Button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { 
+  PlusIcon,
+  EyeIcon,
+  PencilIcon,
+  TrashIcon,
+  ClockIcon,
+  CurrencyDollarIcon,
+  UsersIcon,
+  CalendarIcon,
+  BuildingOfficeIcon
+} from '@heroicons/react/24/outline';
+import { Project } from '@/types';
+import { transformProject, getIndustryTags } from '@/lib/utils';
+import toast from 'react-hot-toast';
+
+export default function BusinessDashboardPage() {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
+  const fetchProjects = async () => {
+    try {
+      const response = await fetch('/api/business/projects');
+      if (response.ok) {
+        const data = await response.json();
+        // Transform the projects to ensure consistent camelCase naming
+        const transformedProjects = data.data.map(transformProject);
+        setProjects(transformedProjects);
+      } else {
+        throw new Error('Failed to fetch projects');
+      }
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      toast.error('Failed to load projects');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteProject = async (projectId: string) => {
+    try {
+      const response = await fetch(`/api/business/projects/${projectId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        setProjects(projects.filter(p => p.id !== projectId));
+        toast.success('Project deleted successfully');
+      } else {
+        throw new Error('Failed to delete project');
+      }
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      toast.error('Failed to delete project');
+    } finally {
+      setDeleteId(null);
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const baseClasses = "px-2 py-1 text-xs font-medium rounded-full";
+    if (status === 'open') {
+      return `${baseClasses} bg-green-100 text-green-800`;
+    }
+    return `${baseClasses} bg-gray-100 text-gray-800`;
+  };
+
+  const getApplicationsCount = (project: Project) => {
+    return project.applications?.length || 0;
+  };
+
+  const getActiveApplicationsCount = (project: Project) => {
+    return project.applications?.filter(app => 
+      ['submitted', 'underReview', 'interviewScheduled'].includes(app.status)
+    ).length || 0;
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading your projects...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-6">
+            <div className="flex items-center space-x-4">
+              <div className="w-10 h-10 bg-gradient-to-br from-secondary-500 to-accent-500 rounded-full flex items-center justify-center">
+                <BuildingOfficeIcon className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Business Dashboard</h1>
+                <p className="text-gray-600">Manage your project opportunities</p>
+              </div>
+            </div>
+            <Link href="/business/projects/new">
+              <Button className="inline-flex items-center space-x-2">
+                <PlusIcon className="w-5 h-5" />
+                <span>New Project</span>
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Stats Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <div className="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center">
+                    <BuildingOfficeIcon className="w-5 h-5 text-primary-600" />
+                  </div>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Total Projects</p>
+                  <p className="text-2xl font-bold text-gray-900">{projects.length}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                    <ClockIcon className="w-5 h-5 text-green-600" />
+                  </div>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Active Projects</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {projects.filter(p => p.status === 'open').length}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <UsersIcon className="w-5 h-5 text-blue-600" />
+                  </div>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Total Applications</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {projects.reduce((sum, p) => sum + getApplicationsCount(p), 0)}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <div className="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center">
+                    <EyeIcon className="w-5 h-5 text-yellow-600" />
+                  </div>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Pending Review</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {projects.reduce((sum, p) => sum + getActiveApplicationsCount(p), 0)}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Projects Grid */}
+        {projects.length === 0 ? (
+          <Card>
+            <CardContent className="p-12 text-center">
+              <BuildingOfficeIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No projects yet</h3>
+              <p className="text-gray-600 mb-6">
+                Create your first project to start connecting with talented AI students.
+              </p>
+              <Link href="/business/projects/new">
+                <Button>
+                  <PlusIcon className="w-5 h-5 mr-2" />
+                  Create Your First Project
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {projects.map((project) => {
+              const industryTags = getIndustryTags(project);
+              return (
+                <Card key={project.id} hover className="relative group">
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <CardTitle className="text-lg font-semibold text-gray-900 mb-2">
+                          {project.title}
+                        </CardTitle>
+                        <div className="flex flex-wrap gap-2 mb-3">
+                          {industryTags.slice(0, 2).map((tag, index) => (
+                            <span
+                              key={index}
+                              className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                          {industryTags.length > 2 && (
+                            <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-600 rounded-full">
+                              +{industryTags.length - 2} more
+                            </span>
+                          )}
+                        </div>
+                        <div className={getStatusBadge(project.status)}>
+                          {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
+                        </div>
+                      </div>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent>
+                    <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+                      {project.description}
+                    </p>
+
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-center text-sm text-gray-500">
+                        <ClockIcon className="w-4 h-4 mr-2" />
+                        <span>{project.duration}</span>
+                      </div>
+                      <div className="flex items-center text-sm text-gray-500">
+                        <CurrencyDollarIcon className="w-4 h-4 mr-2" />
+                        <span>{project.compensationType}: {project.compensationValue}</span>
+                      </div>
+                      <div className="flex items-center text-sm text-gray-500">
+                        <UsersIcon className="w-4 h-4 mr-2" />
+                        <span>{getApplicationsCount(project)} applications</span>
+                      </div>
+                      <div className="flex items-center text-sm text-gray-500">
+                        <CalendarIcon className="w-4 h-4 mr-2" />
+                        <span>Ends: {new Date(project.applyWindowEnd).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex space-x-2">
+                      <Link href={`/business/projects/${project.id}/applicants`} className="flex-1">
+                        <Button variant="outline" size="sm" className="w-full">
+                          <EyeIcon className="w-4 h-4 mr-1" />
+                          View Applications
+                        </Button>
+                      </Link>
+                      <Link href={`/business/projects/${project.id}/edit`}>
+                        <Button variant="ghost" size="sm">
+                          <PencilIcon className="w-4 h-4" />
+                        </Button>
+                      </Link>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDeleteId(project.id)}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteId && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <Card className="max-w-lg w-full">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold text-gray-900">
+                Confirm Delete
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to delete this project? This action cannot be undone and will remove all associated applications.
+              </p>
+              <div className="flex space-x-3">
+                <Button
+                  variant="danger"
+                  onClick={() => handleDeleteProject(deleteId)}
+                  className="flex-1"
+                >
+                  Delete Project
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setDeleteId(null)}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+} 
