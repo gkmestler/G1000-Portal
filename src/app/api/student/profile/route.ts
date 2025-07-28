@@ -1,17 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { AvailabilitySlot } from '@/types';
+import { v4 as uuidv4 } from 'uuid';
+
+// Helper function to ensure all availability slots have stable UUIDs  
+function ensureSlotsHaveIds(slots: any[]): AvailabilitySlot[] {
+  return slots.map(slot => ({
+    ...slot,
+    id: slot.id || uuidv4()
+  }));
+}
 
 export async function PUT(request: NextRequest) {
   try {
     const user = await getUserFromRequest(request);
+    console.log('User from request:', user);
     
     if (!user || user.role !== 'student') {
+      console.log('Auth failed - user:', user);
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await request.json();
-    const { bio, linkedinUrl, githubUrl, personalWebsiteUrl, skills, proofOfWorkUrls } = body;
+    const { bio, linkedinUrl, githubUrl, personalWebsiteUrl, skills, proofOfWorkUrls, availableDays, availableStartTime, availableEndTime, availabilitySlots, timezone } = body;
 
     // Validate URLs
     const urlFields = { linkedinUrl, githubUrl, personalWebsiteUrl };
@@ -59,6 +71,13 @@ export async function PUT(request: NextRequest) {
       personal_website_url: personalWebsiteUrl || null,
       skills: skills || [],
       proof_of_work_urls: proofOfWorkUrls || [],
+      // Legacy availability fields (kept for backward compatibility)
+      available_days: availableDays || [],
+      available_start_time: availableStartTime || null,
+      available_end_time: availableEndTime || null,
+      // New flexible availability - ensure all slots have IDs
+      availability_slots: availabilitySlots ? ensureSlotsHaveIds(availabilitySlots) : [],
+      timezone: timezone || 'America/New_York',
       updated_at: new Date().toISOString()
     };
 
@@ -91,7 +110,11 @@ export async function PUT(request: NextRequest) {
 
     if (result.error) {
       console.error('Profile update error:', result.error);
-      return NextResponse.json({ error: 'Failed to update profile' }, { status: 500 });
+      console.error('Profile data being saved:', profileData);
+      return NextResponse.json({ 
+        error: 'Failed to update profile', 
+        details: process.env.NODE_ENV === 'development' ? result.error.message : undefined 
+      }, { status: 500 });
     }
 
     return NextResponse.json({
@@ -106,11 +129,22 @@ export async function PUT(request: NextRequest) {
         resumeUrl: result.data.resume_url,
         skills: result.data.skills || [],
         proofOfWorkUrls: result.data.proof_of_work_urls || [],
+        // Legacy availability fields
+        availableDays: result.data.available_days || [],
+        availableStartTime: result.data.available_start_time,
+        availableEndTime: result.data.available_end_time,
+        // New flexible availability
+        availabilitySlots: result.data.availability_slots || [],
+        timezone: result.data.timezone || 'America/New_York',
         updatedAt: result.data.updated_at
       }
     });
   } catch (error) {
     console.error('Student profile update error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Request body:', await request.clone().json().catch(() => 'Could not parse body'));
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      details: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
+    }, { status: 500 });
   }
 } 

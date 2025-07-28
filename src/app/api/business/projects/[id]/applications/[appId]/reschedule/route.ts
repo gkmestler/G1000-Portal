@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getUserFromRequest } from '@/lib/auth';
 import { sendEmail } from '@/lib/email';
+import { toISOString } from '@/lib/utils';
 
 export async function POST(
   request: NextRequest,
@@ -37,7 +38,11 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { reason } = await request.json();
+    const { meetingDateTime, meetingLink, message } = await request.json();
+
+    if (!meetingDateTime) {
+      return NextResponse.json({ error: 'Meeting date and time are required' }, { status: 400 });
+    }
 
     // Verify the project belongs to this business owner and get application details
     const { data: application, error: applicationError } = await supabaseAdmin
@@ -62,13 +67,20 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Update application status
+    // Check if application has a scheduled interview
+    if (application.status !== 'interviewScheduled') {
+      return NextResponse.json({ error: 'No interview scheduled for this application' }, { status: 400 });
+    }
+
+    // Store the old meeting time for email notification
+    const oldMeetingDateTime = application.meeting_date_time;
+
+    // Update application with new meeting time
     const { data: updatedApplication, error: updateError } = await supabaseAdmin
       .from('applications')
       .update({
-        status: 'rejected',
-        rejected_at: new Date().toISOString(),
-        reflection_owner: reason || null
+        meeting_date_time: toISOString(meetingDateTime),
+        invited_at: new Date().toISOString() // Update the invitation timestamp
       })
       .eq('id', params.appId)
       .select('*')
@@ -104,34 +116,39 @@ export async function POST(
       .eq('id', projectData?.owner_id)
       .single();
 
-    // Send email notification to student
+    // Send email notification to student about the reschedule
     if (student && projectData && owner && ownerProfile) {
       try {
         await sendEmail({
           to: student.email,
-          subject: `Application Update - ${projectData.title}`,
+          subject: `Interview Rescheduled - ${projectData.title}`,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h2 style="color: #006744;">Application Update</h2>
+              <h2 style="color: #006744;">Interview Time Updated</h2>
               
               <p>Hi ${student.name},</p>
               
-              <p>Thank you for your interest in the project: <strong>${projectData.title}</strong> at ${ownerProfile.company_name}.</p>
+              <p>${owner.name} from ${ownerProfile.company_name} has updated the time for your interview for the project: <strong>${projectData.title}</strong>.</p>
               
-              <p>After careful consideration, we have decided to move forward with other candidates for this particular opportunity.</p>
+              <div style="background: #fef3c7; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
+                <h3 style="margin-top: 0; color: #92400e;">Meeting Time Change</h3>
+                <p style="margin: 10px 0; color: #78350f;"><strong>Previous Time:</strong> ${oldMeetingDateTime ? new Date(oldMeetingDateTime).toLocaleString() : 'Not specified'}</p>
+                <p style="margin: 10px 0; color: #78350f;"><strong>New Time:</strong> ${new Date(toISOString(meetingDateTime)).toLocaleString()}</p>
+                ${meetingLink ? `<p style="margin: 10px 0; color: #78350f;"><strong>Meeting Link:</strong> <a href="${meetingLink}" style="color: #d97706;">${meetingLink}</a></p>` : ''}
+              </div>
               
-              ${reason ? `
+              ${message ? `
                 <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                  <h3 style="margin-top: 0;">Feedback</h3>
-                  <p>${reason}</p>
+                  <h3 style="margin-top: 0;">Message from ${owner.name}:</h3>
+                  <p style="margin-bottom: 0;">${message}</p>
                 </div>
               ` : ''}
               
-              <p>Please don't be discouraged - there are many exciting opportunities on the G1000 Portal. We encourage you to continue exploring and applying to projects that match your skills and interests.</p>
+              <p>Please update your calendar with the new meeting time. We apologize for any inconvenience this may cause.</p>
               
-              <a href="${process.env.NEXT_PUBLIC_APP_URL}/student/opportunities" style="background: #006744; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 20px 0;">Explore More Opportunities</a>
+              <a href="${process.env.NEXT_PUBLIC_APP_URL}/student/applications" style="background: #006744; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 20px 0;">View Updated Interview Details</a>
               
-              <p>Best of luck with your future applications!</p>
+              <p>Looking forward to the interview!</p>
               
               <p>The G1000 Portal Team</p>
             </div>
@@ -145,7 +162,7 @@ export async function POST(
 
     return NextResponse.json({ data: updatedApplication });
   } catch (error) {
-    console.error('Error in POST /api/business/projects/[id]/applications/[appId]/reject:', error);
+    console.error('Error in POST /api/business/projects/[id]/applications/[appId]/reschedule:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 } 

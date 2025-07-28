@@ -57,6 +57,11 @@ export type Database = {
           resume_url: string | null;
           skills: string[];
           proof_of_work_urls: string[];
+          available_days: string[];
+          available_start_time: string | null;
+          available_end_time: string | null;
+          availability_slots: Array<{day: string, start_time: string, end_time: string}>;
+          timezone: string;
           updated_at: string;
         };
         Insert: {
@@ -70,6 +75,11 @@ export type Database = {
           resume_url?: string | null;
           skills?: string[];
           proof_of_work_urls?: string[];
+          available_days?: string[];
+          available_start_time?: string | null;
+          available_end_time?: string | null;
+          availability_slots?: Array<{day: string, start_time: string, end_time: string}>;
+          timezone?: string;
           updated_at?: string;
         };
         Update: {
@@ -83,6 +93,11 @@ export type Database = {
           resume_url?: string | null;
           skills?: string[];
           proof_of_work_urls?: string[];
+          available_days?: string[];
+          available_start_time?: string | null;
+          available_end_time?: string | null;
+          availability_slots?: Array<{day: string, start_time: string, end_time: string}>;
+          timezone?: string;
           updated_at?: string;
         };
       };

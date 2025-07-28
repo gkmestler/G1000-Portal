@@ -16,7 +16,7 @@ import {
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 import { Project, ProjectForm, INDUSTRY_TAGS, SKILL_TAGS, DURATION_OPTIONS, COMPENSATION_TYPES } from '@/types';
-import { transformProject, formatDateForInput, getTomorrowDate, getNextWeekDate } from '@/lib/utils';
+import { transformProject, formatDateForInput, getTodayDate, getTomorrowDate, getNextWeekDate } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
 export default function EditProjectPage() {
@@ -32,10 +32,12 @@ export default function EditProjectPage() {
   const [formData, setFormData] = useState<ProjectForm>({
     title: '',
     description: '',
+    type: 'project-based',
+    typeExplanation: '',
     industryTags: [],
     duration: '',
     deliverables: [''],
-    compensationType: 'stipend',
+    compensationType: 'unpaid',
     compensationValue: '',
     applyWindowStart: '',
     applyWindowEnd: '',
@@ -62,6 +64,8 @@ export default function EditProjectPage() {
         setFormData({
           title: projectData.title,
           description: projectData.description,
+          type: projectData.type || 'project-based',
+          typeExplanation: projectData.typeExplanation || '',
           industryTags: projectData.industryTags || [],
           duration: projectData.duration,
           deliverables: projectData.deliverables.length > 0 ? projectData.deliverables : [''],
@@ -384,7 +388,7 @@ export default function EditProjectPage() {
                   <select
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     value={formData.compensationType}
-                    onChange={(e) => setFormData({ ...formData, compensationType: e.target.value as 'stipend' | 'equity' | 'credit' })}
+                    onChange={(e) => setFormData({ ...formData, compensationType: e.target.value as ProjectForm['compensationType'] })}
                     required
                   >
                     {COMPENSATION_TYPES.map((type) => (
@@ -519,7 +523,7 @@ export default function EditProjectPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     value={formData.applyWindowStart}
                     onChange={(e) => setFormData({ ...formData, applyWindowStart: e.target.value })}
-                    min={getTomorrowDate()}
+                    min={getTodayDate()}
                     required
                   />
                   {errors.applyWindowStart && (

@@ -14,7 +14,8 @@ import {
   ClockIcon,
   DocumentTextIcon
 } from '@heroicons/react/24/outline';
-import { ProjectForm, INDUSTRY_TAGS, SKILL_TAGS, DURATION_OPTIONS, COMPENSATION_TYPES } from '@/types';
+import { ProjectForm, INDUSTRY_TAGS, SKILL_TAGS, COMPENSATION_TYPES, PROJECT_TYPES } from '@/types';
+import { getTodayDate, getNextWeekDate } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
 export default function NewProjectPage() {
@@ -25,10 +26,12 @@ export default function NewProjectPage() {
   const [formData, setFormData] = useState<ProjectForm>({
     title: '',
     description: '',
+    type: 'project-based',
+    typeExplanation: '',
     industryTags: [],
     duration: '',
     deliverables: [''],
-    compensationType: 'stipend',
+    compensationType: 'unpaid',
     compensationValue: '',
     applyWindowStart: '',
     applyWindowEnd: '',
@@ -41,9 +44,14 @@ export default function NewProjectPage() {
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.title.trim()) newErrors.title = 'Title is required';
-    if (!formData.description.trim()) newErrors.description = 'Description is required';
-    if (!formData.duration) newErrors.duration = 'Duration is required';
+    if (!formData.title.trim()) newErrors.title = 'Opportunity Title is required';
+    if (!formData.description.trim()) newErrors.description = 'Opportunity Description is required';
+    if (!formData.type) newErrors.type = 'Type is required';
+    if (formData.type === 'other' && !formData.typeExplanation?.trim()) {
+      newErrors.typeExplanation = 'Please explain the type when selecting "other"';
+    }
+    if (formData.industryTags.length === 0) newErrors.industryTags = 'Industry is required';
+    if (!formData.duration.trim()) newErrors.duration = 'Duration is required';
     if (!formData.compensationType) newErrors.compensationType = 'Compensation type is required';
     if (!formData.compensationValue.trim()) newErrors.compensationValue = 'Compensation value is required';
     if (!formData.applyWindowStart) newErrors.applyWindowStart = 'Application start date is required';
@@ -53,7 +61,12 @@ export default function NewProjectPage() {
       if (new Date(formData.applyWindowStart) >= new Date(formData.applyWindowEnd)) {
         newErrors.applyWindowEnd = 'End date must be after start date';
       }
-      if (new Date(formData.applyWindowStart) < new Date()) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Set to start of day for comparison
+      const startDate = new Date(formData.applyWindowStart);
+      startDate.setHours(0, 0, 0, 0);
+      
+      if (startDate < today) {
         newErrors.applyWindowStart = 'Start date cannot be in the past';
       }
     }
@@ -87,14 +100,14 @@ export default function NewProjectPage() {
       });
 
       if (response.ok) {
-        toast.success('Project created successfully!');
+        toast.success('Opportunity created successfully!');
         router.push('/business/dashboard');
       } else {
         const data = await response.json();
-        toast.error(data.error || 'Failed to create project');
+        toast.error(data.error || 'Failed to create opportunity');
       }
     } catch (error) {
-      console.error('Error creating project:', error);
+      console.error('Error creating opportunity:', error);
       toast.error('Network error. Please try again.');
     } finally {
       setLoading(false);
@@ -160,16 +173,30 @@ export default function NewProjectPage() {
     }
   };
 
-  const getTomorrowDate = () => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow.toISOString().split('T')[0];
+
+
+  const getCompensationTypeLabel = (type: string) => {
+    switch (type) {
+      case 'unpaid': return 'Unpaid (for experience)';
+      case 'hourly-wage': return 'Hourly Wage';
+      case 'salary': return 'Salary';
+      case 'stipend': return 'Stipend';
+      case 'commission': return 'Commission';
+      case 'hourly-commission': return 'Hourly + Commission';
+      case 'other': return 'Other';
+      default: return type;
+    }
   };
 
-  const getNextWeekDate = () => {
-    const nextWeek = new Date();
-    nextWeek.setDate(nextWeek.getDate() + 7);
-    return nextWeek.toISOString().split('T')[0];
+  const getProjectTypeLabel = (type: string) => {
+    switch (type) {
+      case 'project-based': return 'Project-based';
+      case 'internship': return 'Internship';
+      case 'micro-internship': return 'Micro-internship';
+      case 'consulting-gig': return 'Consulting gig';
+      case 'other': return 'Other - explain';
+      default: return type;
+    }
   };
 
   return (
@@ -185,7 +212,8 @@ export default function NewProjectPage() {
               </Button>
             </Link>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Create New Project</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Business Portal</h1>
+              <h2 className="text-xl font-semibold text-gray-700 mt-1">Create New Opportunity</h2>
               <p className="text-gray-600">Post a new opportunity for G1000 students</p>
             </div>
           </div>
@@ -203,12 +231,12 @@ export default function NewProjectPage() {
                 Basic Information
               </CardTitle>
               <CardDescription>
-                Provide the core details about your project opportunity
+                Provide the core details about your opportunity
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <Input
-                label="Project Title"
+                label="Opportunity Title *"
                 placeholder="e.g., AI-Powered Customer Service Chatbot"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
@@ -218,12 +246,12 @@ export default function NewProjectPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Project Description
+                  Opportunity Description *
                 </label>
                 <textarea
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
                   rows={6}
-                  placeholder="Describe your project in detail. Include the problem you're solving, the scope of work, and what success looks like..."
+                  placeholder="Describe your opportunity in detail. Include the problem you're solving, the scope of work, and what success looks like..."
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   required
@@ -233,10 +261,49 @@ export default function NewProjectPage() {
                 )}
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Type *
+                </label>
+                <select
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  value={formData.type}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value as ProjectForm['type'] })}
+                  required
+                >
+                  {PROJECT_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {getProjectTypeLabel(type)}
+                    </option>
+                  ))}
+                </select>
+                {errors.type && (
+                  <p className="mt-1 text-sm text-red-600">{errors.type}</p>
+                )}
+              </div>
+
+              {formData.type === 'other' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Please explain the type
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    placeholder="Please explain what type of opportunity this is..."
+                    value={formData.typeExplanation || ''}
+                    onChange={(e) => setFormData({ ...formData, typeExplanation: e.target.value })}
+                  />
+                  {errors.typeExplanation && (
+                    <p className="mt-1 text-sm text-red-600">{errors.typeExplanation}</p>
+                  )}
+                </div>
+              )}
+
               {/* Industry Tags */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Industry Tags
+                  Industry *
                 </label>
                 <div className="flex flex-wrap gap-2 mb-3">
                   {formData.industryTags.map((tag, index) => (
@@ -275,6 +342,9 @@ export default function NewProjectPage() {
                     Add
                   </Button>
                 </div>
+                {errors.industryTags && (
+                  <p className="mt-1 text-sm text-red-600">{errors.industryTags}</p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -284,7 +354,7 @@ export default function NewProjectPage() {
             <CardHeader>
               <CardTitle className="flex items-center">
                 <ClockIcon className="w-5 h-5 mr-2" />
-                Project Details
+                Opportunity Details
               </CardTitle>
               <CardDescription>
                 Specify the timeline, deliverables, and requirements
@@ -294,19 +364,16 @@ export default function NewProjectPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Duration
+                    Duration * (estimated duration)
                   </label>
-                  <select
+                  <input
+                    type="text"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    placeholder="e.g., 6 weeks, 2-3 months, 10 hours/week for 8 weeks"
                     value={formData.duration}
                     onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
                     required
-                  >
-                    <option value="">Select duration...</option>
-                    {DURATION_OPTIONS.map((option) => (
-                      <option key={option} value={option}>{option}</option>
-                    ))}
-                  </select>
+                  />
                   {errors.duration && (
                     <p className="mt-1 text-sm text-red-600">{errors.duration}</p>
                   )}
@@ -314,17 +381,17 @@ export default function NewProjectPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Compensation Type
+                    Compensation Type *
                   </label>
                   <select
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     value={formData.compensationType}
-                    onChange={(e) => setFormData({ ...formData, compensationType: e.target.value as 'stipend' | 'equity' | 'credit' })}
+                    onChange={(e) => setFormData({ ...formData, compensationType: e.target.value as ProjectForm['compensationType'] })}
                     required
                   >
                     {COMPENSATION_TYPES.map((type) => (
                       <option key={type} value={type}>
-                        {type.charAt(0).toUpperCase() + type.slice(1)}
+                        {getCompensationTypeLabel(type)}
                       </option>
                     ))}
                   </select>
@@ -335,8 +402,8 @@ export default function NewProjectPage() {
               </div>
 
               <Input
-                label="Compensation Value"
-                placeholder="e.g., $2,000, 0.5%, Course Credit"
+                label="Compensation Value *"
+                placeholder="e.g., $25/hour, $2,000 total, Great experience and portfolio piece"
                 value={formData.compensationValue}
                 onChange={(e) => setFormData({ ...formData, compensationValue: e.target.value })}
                 error={errors.compensationValue}
@@ -346,7 +413,7 @@ export default function NewProjectPage() {
               {/* Deliverables */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Project Deliverables
+                  Opportunity Deliverables
                 </label>
                 <div className="space-y-3">
                   {formData.deliverables.map((deliverable, index) => (
@@ -440,7 +507,7 @@ export default function NewProjectPage() {
                 Application Window
               </CardTitle>
               <CardDescription>
-                Set when students can apply to this project
+                Set when students can apply to this opportunity
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -454,7 +521,7 @@ export default function NewProjectPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     value={formData.applyWindowStart}
                     onChange={(e) => setFormData({ ...formData, applyWindowStart: e.target.value })}
-                    min={getTomorrowDate()}
+                    min={getTodayDate()}
                     required
                   />
                   {errors.applyWindowStart && (
@@ -490,7 +557,7 @@ export default function NewProjectPage() {
               </Button>
             </Link>
             <Button type="submit" loading={loading}>
-              Create Project
+              Create Opportunity
             </Button>
           </div>
         </form>

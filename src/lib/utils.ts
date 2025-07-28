@@ -64,6 +64,8 @@ export const transformProject = (dbProject: any): Project => {
     id: dbProject.id,
     title: dbProject.title,
     description: dbProject.description,
+    type: dbProject.type || 'project-based',
+    typeExplanation: dbProject.type_explanation || dbProject.typeExplanation,
     industryTags: dbProject.industry_tags || dbProject.industryTags || [],
     duration: dbProject.duration,
     deliverables: dbProject.deliverables || [],
@@ -92,15 +94,119 @@ export const formatDateForInput = (dateString: string) => {
 };
 
 // Get tomorrow's date for minimum date validation
+// Get today's date for minimum date selection (uses local timezone)
+export const getTodayDate = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+// Get tomorrow's date for minimum date selection (uses local timezone)
 export const getTomorrowDate = () => {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
-  return tomorrow.toISOString().split('T')[0];
+  const year = tomorrow.getFullYear();
+  const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+  const day = String(tomorrow.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
-// Get next week's date for default date selection
+// Get next week's date for default date selection (uses local timezone)
 export const getNextWeekDate = () => {
   const nextWeek = new Date();
   nextWeek.setDate(nextWeek.getDate() + 7);
-  return nextWeek.toISOString().split('T')[0];
+  const year = nextWeek.getFullYear();
+  const month = String(nextWeek.getMonth() + 1).padStart(2, '0');
+  const day = String(nextWeek.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+// General email validation function
+export const validateEmail = (email: string): boolean => {
+  if (!email || typeof email !== 'string') {
+    return false;
+  }
+  
+  // Basic email format validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
+// Validate that an email address is from Babson University
+export const validateBabsonEmail = (email: string): boolean => {
+  if (!email || typeof email !== 'string') {
+    return false;
+  }
+  
+  // Basic email format validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return false;
+  }
+  
+  // Check if email ends with @babson.edu
+  return email.toLowerCase().endsWith('@babson.edu');
 }; 
+
+/**
+ * Fixes timezone issues with datetime-local inputs
+ * Ensures the date is treated as local time, not UTC
+ */
+export function parseLocalDateTime(dateTimeString: string): Date {
+  if (!dateTimeString) return new Date();
+  
+  // If the string is from datetime-local (no timezone), treat it as local time
+  if (dateTimeString.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)) {
+    // Create date in local timezone by explicitly parsing components
+    const [date, time] = dateTimeString.split('T');
+    const [year, month, day] = date.split('-').map(Number);
+    const [hour, minute] = time.split(':').map(Number);
+    
+    return new Date(year, month - 1, day, hour, minute);
+  }
+  
+  // Otherwise, use standard Date parsing
+  return new Date(dateTimeString);
+}
+
+/**
+ * Formats a datetime string for display, ensuring timezone consistency
+ */
+export function formatMeetingDateTime(dateTimeString: string): string {
+  const date = parseLocalDateTime(dateTimeString);
+  return date.toLocaleString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZoneName: 'short'
+  });
+}
+
+/**
+ * Formats datetime for datetime-local input value
+ */
+export function toDateTimeLocalValue(date: Date | string): string {
+  const d = typeof date === 'string' ? parseLocalDateTime(date) : date;
+  
+  // Format as YYYY-MM-DDTHH:MM for datetime-local input
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+/**
+ * Converts local datetime-local value to ISO string for API storage
+ */
+export function toISOString(dateTimeLocalValue: string): string {
+  const date = parseLocalDateTime(dateTimeLocalValue);
+  return date.toISOString();
+} 

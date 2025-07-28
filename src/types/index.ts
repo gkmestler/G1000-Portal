@@ -7,6 +7,13 @@ export interface User {
   updatedAt: string;
 }
 
+export interface AvailabilitySlot {
+  id: string; // Unique identifier for each slot
+  day: string; // 'Monday', 'Tuesday', etc.
+  start_time: string; // 'HH:MM' format
+  end_time: string; // 'HH:MM' format
+}
+
 export interface StudentProfile {
   userId: string;
   bio?: string;
@@ -18,6 +25,13 @@ export interface StudentProfile {
   resumeUrl?: string;
   skills: string[];
   proofOfWorkUrls: string[];
+  // Legacy availability fields (kept for backward compatibility)
+  availableDays: string[];
+  availableStartTime?: string;
+  availableEndTime?: string;
+  // New flexible availability system
+  availabilitySlots?: AvailabilitySlot[];
+  timezone: string;
   updatedAt: string;
   user?: User;
 }
@@ -38,10 +52,12 @@ export interface Project {
   ownerId: string;
   title: string;
   description: string;
+  type: 'project-based' | 'internship' | 'micro-internship' | 'consulting-gig' | 'other';
+  typeExplanation?: string;
   industryTags: string[];
   duration: string;
   deliverables: string[];
-  compensationType: 'stipend' | 'equity' | 'credit';
+  compensationType: 'unpaid' | 'hourly-wage' | 'salary' | 'stipend' | 'commission' | 'hourly-commission' | 'other';
   compensationValue: string;
   applyWindowStart: string;
   applyWindowEnd: string;
@@ -107,10 +123,12 @@ export interface LoginForm {
 export interface ProjectForm {
   title: string;
   description: string;
+  type: 'project-based' | 'internship' | 'micro-internship' | 'consulting-gig' | 'other';
+  typeExplanation?: string;
   industryTags: string[];
   duration: string;
   deliverables: string[];
-  compensationType: 'stipend' | 'equity' | 'credit';
+  compensationType: 'unpaid' | 'hourly-wage' | 'salary' | 'stipend' | 'commission' | 'hourly-commission' | 'other';
   compensationValue: string;
   applyWindowStart: string;
   applyWindowEnd: string;
@@ -129,13 +147,33 @@ export interface ProfileForm {
   personalWebsiteUrl?: string;
   skills: string[];
   proofOfWorkUrls: string[];
+  availableDays: string[];
+  availableStartTime?: string;
+  availableEndTime?: string;
+  timezone: string;
 }
 
 // Constants
 export const ROLES = ['student', 'owner', 'admin'] as const;
 export const APPLICATION_STATUSES = ['submitted', 'underReview', 'interviewScheduled', 'accepted', 'rejected'] as const;
 export const PROJECT_STATUSES = ['open', 'closed'] as const;
-export const COMPENSATION_TYPES = ['stipend', 'equity', 'credit'] as const;
+export const COMPENSATION_TYPES = [
+  'unpaid',
+  'hourly-wage',
+  'salary',
+  'stipend',
+  'commission',
+  'hourly-commission',
+  'other'
+] as const;
+
+export const PROJECT_TYPES = [
+  'project-based',
+  'internship',
+  'micro-internship',
+  'consulting-gig',
+  'other'
+] as const;
 
 export const DURATION_OPTIONS = [
   '< 4 weeks',

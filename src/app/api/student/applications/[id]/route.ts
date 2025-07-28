@@ -7,7 +7,30 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const user = await getUserFromRequest(request);
+    let user;
+    
+    // In dev mode, create mock student user for student context
+    if (process.env.DEV_MODE === 'true') {
+      const referer = request.headers.get('referer') || '';
+      const pathname = new URL(request.url).pathname;
+      
+      // For student API routes, always use student context in dev mode
+      if (pathname.startsWith('/api/student') || referer.includes('/student')) {
+        user = {
+          id: '550e8400-e29b-41d4-a716-446655440000',
+          email: 'dev-student@example.com',
+          name: 'Dev Student',
+          role: 'student' as const,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+      }
+    }
+    
+    // Normal auth flow for production
+    if (!user) {
+      user = await getUserFromRequest(request);
+    }
     
     if (!user || user.role !== 'student') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

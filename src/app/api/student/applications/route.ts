@@ -4,18 +4,41 @@ import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await getUserFromRequest(request);
+    let user;
+    
+    // In dev mode, create mock student user for student context
+    if (process.env.DEV_MODE === 'true') {
+      const referer = request.headers.get('referer') || '';
+      const pathname = new URL(request.url).pathname;
+      
+      // For student API routes, always use student context in dev mode
+      if (pathname.startsWith('/api/student') || referer.includes('/student')) {
+        user = {
+          id: '550e8400-e29b-41d4-a716-446655440000',
+          email: 'dev-student@example.com',
+          name: 'Dev Student',
+          role: 'student' as const,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+      }
+    }
+    
+    // Normal auth flow for production
+    if (!user) {
+      user = await getUserFromRequest(request);
+    }
     
     if (!user || user.role !== 'student') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get applications with project and business owner details
+    // Get applications with project details
     const { data: applications, error: applicationsError } = await supabaseAdmin
       .from('applications')
       .select(`
         *,
-        project:projects(
+        projects(
           id,
           title,
           description,
@@ -23,10 +46,7 @@ export async function GET(request: NextRequest) {
           duration,
           compensation_type,
           compensation_value,
-          owner:business_owner_profiles(
-            company_name,
-            website_url
-          )
+          owner_id
         )
       `)
       .eq('student_id', user.id)
@@ -50,18 +70,15 @@ export async function GET(request: NextRequest) {
       meetingDateTime: app.meeting_date_time,
       reflectionOwner: app.reflection_owner,
       reflectionStudent: app.reflection_student,
-      project: app.project ? {
-        id: app.project.id,
-        title: app.project.title,
-        description: app.project.description,
-        industryTags: app.project.industry_tags,
-        duration: app.project.duration,
-        compensationType: app.project.compensation_type,
-        compensationValue: app.project.compensation_value,
-        owner: app.project.owner ? {
-          companyName: app.project.owner.company_name,
-          websiteUrl: app.project.owner.website_url
-        } : null
+      project: app.projects ? {
+        id: app.projects.id,
+        title: app.projects.title,
+        description: app.projects.description,
+        industryTags: app.projects.industry_tags,
+        duration: app.projects.duration,
+        compensationType: app.projects.compensation_type,
+        compensationValue: app.projects.compensation_value,
+        ownerId: app.projects.owner_id
       } : null
     }));
 

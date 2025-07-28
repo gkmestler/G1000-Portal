@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { AvailabilitySlot } from '@/types';
+import { v4 as uuidv4 } from 'uuid';
+
+// Helper function to ensure all availability slots have stable UUIDs
+function ensureSlotsHaveIds(slots: any[]): AvailabilitySlot[] {
+  if (!slots || !Array.isArray(slots)) return [];
+  return slots.map(slot => ({
+    ...slot,
+    id: slot.id || uuidv4()
+  }));
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -41,6 +52,13 @@ export async function GET(request: NextRequest) {
           resumeUrl: profile.resume_url,
           skills: profile.skills || [],
           proofOfWorkUrls: profile.proof_of_work_urls || [],
+          // Legacy availability fields
+          availableDays: profile.available_days || [],
+          availableStartTime: profile.available_start_time,
+          availableEndTime: profile.available_end_time,
+          // New flexible availability - ensure all slots have IDs
+          availabilitySlots: ensureSlotsHaveIds(profile.availability_slots || []),
+          timezone: profile.timezone || 'America/New_York',
           updatedAt: profile.updated_at
         } : null
       }

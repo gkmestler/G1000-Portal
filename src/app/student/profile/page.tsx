@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { StudentProfile, User, SKILL_TAGS } from '@/types';
+import { StudentProfile, User, SKILL_TAGS, AvailabilitySlot } from '@/types';
+import { WeeklyAvailability } from '@/components/WeeklyAvailability';
 
 export default function StudentProfilePage() {
   const [user, setUser] = useState<User | null>(null);
@@ -20,7 +21,14 @@ export default function StudentProfilePage() {
     githubUrl: '',
     personalWebsiteUrl: '',
     skills: [] as string[],
-    proofOfWorkUrls: [] as string[]
+    proofOfWorkUrls: [] as string[],
+    // Legacy availability fields (for backward compatibility)
+    availableDays: [] as string[],
+    availableStartTime: '',
+    availableEndTime: '',
+    // New flexible availability
+    availabilitySlots: [] as AvailabilitySlot[],
+    timezone: 'America/New_York'
   });
 
   const [newSkill, setNewSkill] = useState('');
@@ -42,7 +50,12 @@ export default function StudentProfilePage() {
               githubUrl: data.data.profile.githubUrl || '',
               personalWebsiteUrl: data.data.profile.personalWebsiteUrl || '',
               skills: data.data.profile.skills || [],
-              proofOfWorkUrls: data.data.profile.proofOfWorkUrls || []
+              proofOfWorkUrls: data.data.profile.proofOfWorkUrls || [],
+              availableDays: data.data.profile.availableDays || [],
+              availableStartTime: data.data.profile.availableStartTime || '',
+              availableEndTime: data.data.profile.availableEndTime || '',
+              availabilitySlots: data.data.profile.availabilitySlots || [],
+              timezone: data.data.profile.timezone || 'America/New_York'
             });
           }
         }
@@ -97,10 +110,23 @@ export default function StudentProfilePage() {
     }));
   };
 
+  const toggleAvailableDay = (day: string) => {
+    setFormData(prev => ({
+      ...prev,
+      availableDays: prev.availableDays.includes(day) 
+        ? prev.availableDays.filter(d => d !== day)
+        : [...prev.availableDays, day]
+    }));
+  };
+
+
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setMessage('');
+
+    console.log('Submitting profile data:', formData);
 
     try {
       const response = await fetch('/api/student/profile', {
@@ -121,7 +147,12 @@ export default function StudentProfilePage() {
         }
       } else {
         const errorData = await response.json();
+        console.error('Profile update failed:', errorData);
+        console.error('Response status:', response.status);
         setMessage(errorData.error || 'Failed to update profile');
+        if (errorData.details) {
+          console.error('Error details:', errorData.details);
+        }
       }
     } catch (error) {
       console.error('Failed to update profile:', error);
@@ -130,6 +161,14 @@ export default function StudentProfilePage() {
       setSaving(false);
     }
   };
+
+  const handleAvailabilitySlotsChange = useCallback((slots: AvailabilitySlot[]) => {
+    setFormData(prev => ({ ...prev, availabilitySlots: slots }));
+  }, []);
+
+  const handleTimezoneChange = useCallback((timezone: string) => {
+    setFormData(prev => ({ ...prev, timezone }));
+  }, []);
 
   if (loading) {
     return (
@@ -366,6 +405,24 @@ export default function StudentProfilePage() {
                   ))}
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Meeting Availability */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Meeting Availability</CardTitle>
+              <p className="text-sm text-gray-600">
+                Set your flexible availability - different time ranges for different days
+              </p>
+            </CardHeader>
+            <CardContent>
+              <WeeklyAvailability
+                slots={formData.availabilitySlots}
+                onChange={handleAvailabilitySlotsChange}
+                timezone={formData.timezone}
+                onTimezoneChange={handleTimezoneChange}
+              />
             </CardContent>
           </Card>
 

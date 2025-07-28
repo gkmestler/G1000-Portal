@@ -115,7 +115,7 @@ export default function BusinessDashboardPage() {
             <Link href="/business/projects/new">
               <Button className="inline-flex items-center space-x-2">
                 <PlusIcon className="w-5 h-5" />
-                <span>New Project</span>
+                <span>New Opportunity</span>
               </Button>
             </Link>
           </div>
@@ -202,14 +202,14 @@ export default function BusinessDashboardPage() {
           <Card>
             <CardContent className="p-12 text-center">
               <BuildingOfficeIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No projects yet</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No opportunities yet</h3>
               <p className="text-gray-600 mb-6">
-                Create your first project to start connecting with talented AI students.
+                Create your first opportunity to start connecting with talented AI students.
               </p>
               <Link href="/business/projects/new">
                 <Button>
                   <PlusIcon className="w-5 h-5 mr-2" />
-                  Create Your First Project
+                  Create Your First Opportunity
                 </Button>
               </Link>
             </CardContent>
