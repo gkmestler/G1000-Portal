@@ -5,7 +5,6 @@ import { supabaseAdmin } from '@/lib/supabase';
 console.log('Student profile route file loaded');
 
 export const dynamic = 'force-dynamic';
-
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -15,8 +14,30 @@ export async function GET(
   console.log('URL:', request.url);
   
   try {
-    // Get authenticated user using the same method as other business API routes
-    const user = await getUserFromRequest(request);
+    let user;
+    
+    // In dev mode, create mock owner user for business context
+    if (process.env.DEV_MODE === 'true') {
+      const referer = request.headers.get('referer') || '';
+      const pathname = new URL(request.url).pathname;
+      
+      // For business API routes, always use owner context in dev mode
+      if (pathname.startsWith('/api/students') || referer.includes('/business')) {
+        user = {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          email: 'dev-owner@example.com',
+          name: 'Dev Business Owner',
+          role: 'owner' as const,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+      }
+    }
+    
+    // Normal auth flow for production
+    if (!user) {
+      user = await getUserFromRequest(request);
+    }
     
     // Debug logging
     console.log('Student Profile API - Auth check:', {
@@ -57,7 +78,6 @@ export async function GET(
     }
 
     const projectIds = ownerProjects.map(p => p.id);
-
     // Verify that this business owner has a legitimate reason to view this student profile
     // (i.e., the student has applied to one of their projects)
     const { data: hasApplication, error: applicationError } = await supabaseAdmin

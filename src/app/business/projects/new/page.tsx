@@ -406,6 +406,7 @@ export default function NewProjectPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+<<<<<<< HEAD
               {/* Detail Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -454,12 +455,23 @@ export default function NewProjectPage() {
                       <XMarkIcon className="w-4 h-4" />
                     </button>
                   </div>
+=======
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Duration * (estimated duration)
+                  </label>
+>>>>>>> 97dbc55 (fix: Update business API routes to use supabaseAdmin client)
                   <input
                     type="text"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     placeholder="e.g., 6 weeks, 2-3 months, 10 hours/week for 8 weeks"
                     value={formData.duration}
                     onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
+<<<<<<< HEAD
+=======
+                    required
+>>>>>>> 97dbc55 (fix: Update business API routes to use supabaseAdmin client)
                   />
                   {errors.duration && (
                     <p className="mt-1 text-sm text-red-600">{errors.duration}</p>
@@ -467,6 +479,7 @@ export default function NewProjectPage() {
                 </div>
               )}
 
+<<<<<<< HEAD
               {/* Compensation */}
               {selectedDetails.includes('compensation') && (
                 <div className="p-4 bg-gray-50 rounded-lg">
@@ -506,6 +519,47 @@ export default function NewProjectPage() {
                       <label className="block text-sm text-gray-600 mb-1">
                         Value/Details
                       </label>
+=======
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Compensation Type *
+                  </label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    value={formData.compensationType}
+                    onChange={(e) => setFormData({ ...formData, compensationType: e.target.value as ProjectForm['compensationType'] })}
+                    required
+                  >
+                    {COMPENSATION_TYPES.map((type) => (
+                      <option key={type} value={type}>
+                        {getCompensationTypeLabel(type)}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.compensationType && (
+                    <p className="mt-1 text-sm text-red-600">{errors.compensationType}</p>
+                  )}
+                </div>
+              </div>
+
+              <Input
+                label="Compensation Value *"
+                placeholder="e.g., $25/hour, $2,000 total, Great experience and portfolio piece"
+                value={formData.compensationValue}
+                onChange={(e) => setFormData({ ...formData, compensationValue: e.target.value })}
+                error={errors.compensationValue}
+                required
+              />
+
+              {/* Deliverables */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Opportunity Deliverables
+                </label>
+                <div className="space-y-3">
+                  {formData.deliverables.map((deliverable, index) => (
+                    <div key={index} className="flex space-x-2">
+>>>>>>> 97dbc55 (fix: Update business API routes to use supabaseAdmin client)
                       <input
                         type="text"
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"

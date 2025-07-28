@@ -15,7 +15,47 @@ export async function middleware(request: NextRequest) {
     pathname === '/business/register' ||
     pathname === '/business/login'
   ) {
+    // But in dev mode, we need to add headers for API routes too
+    if (process.env.DEV_MODE === 'true' && pathname.startsWith('/api/auth')) {
+      const response = NextResponse.next();
+      
+      // Determine role based on referer for API routes
+      const referer = request.headers.get('referer') || '';
+      let devRole = 'student';
+      
+      if (referer.includes('/business')) {
+        devRole = 'owner';
+      } else if (referer.includes('/admin')) {
+        devRole = 'admin';
+      }
+      
+      response.headers.set('x-dev-mode', 'true');
+      response.headers.set('x-dev-role', devRole);
+      
+      return response;
+    }
+    
     return NextResponse.next();
+  }
+
+  // For all other routes in dev mode, set appropriate headers
+  if (process.env.DEV_MODE === 'true') {
+    const response = NextResponse.next();
+    
+    // Determine role based on path and referer
+    const referer = request.headers.get('referer') || '';
+    let devRole = 'student';
+    
+    if (pathname.startsWith('/business') || pathname.startsWith('/api/business') || referer.includes('/business')) {
+      devRole = 'owner';
+    } else if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin') || referer.includes('/admin')) {
+      devRole = 'admin';
+    }
+    
+    response.headers.set('x-dev-mode', 'true');
+    response.headers.set('x-dev-role', devRole);
+    
+    return response;
   }
 
   // Check authentication for protected routes

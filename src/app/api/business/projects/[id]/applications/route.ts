@@ -9,8 +9,30 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Get authenticated user
-    const user = await getUserFromRequest(request);
+    let user;
+    
+    // In dev mode, create mock owner user for business context
+    if (process.env.DEV_MODE === 'true') {
+      const referer = request.headers.get('referer') || '';
+      const pathname = new URL(request.url).pathname;
+      
+      // For business API routes, always use owner context in dev mode
+      if (pathname.startsWith('/api/business') || referer.includes('/business')) {
+        user = {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          email: 'dev-owner@example.com',
+          name: 'Dev Business Owner',
+          role: 'owner' as const,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+      }
+    }
+    
+    // Normal auth flow for production
+    if (!user) {
+      user = await getUserFromRequest(request);
+    }
     
     if (!user || user.role !== 'owner') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -28,10 +50,17 @@ export async function GET(
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
-    // Get applications for this project
+    // Get applications for this project with student details
     const { data: applications, error } = await supabaseAdmin
       .from('applications')
-      .select('*')
+      .select(`
+        *,
+        users(
+          id,
+          name,
+          email
+        )
+      `)
       .eq('project_id', params.id)
       .order('submitted_at', { ascending: false });
 

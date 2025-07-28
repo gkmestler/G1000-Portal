@@ -368,12 +368,16 @@ export default function ApplicantsPage() {
 
   const fetchStudentAvailability = async (studentId: string) => {
     try {
+<<<<<<< HEAD
       const response = await fetch(`/api/students/${studentId}/profile`, {
         credentials: 'same-origin',
         headers: {
           'Content-Type': 'application/json',
         }
       });
+=======
+      const response = await fetch(`/api/students/${studentId}/profile`);
+>>>>>>> 97dbc55 (fix: Update business API routes to use supabaseAdmin client)
       if (response.ok) {
         const data = await response.json();
         setStudentAvailability(data.data.profile);
@@ -1024,12 +1028,17 @@ export default function ApplicantsPage() {
       <StudentProfileModal 
         isOpen={profileModal.isOpen}
         onClose={() => setProfileModal({ isOpen: false, application: null })}
+<<<<<<< HEAD
         application={profileModal.application}
+=======
+        studentId={profileModal.application?.studentId}
+>>>>>>> 97dbc55 (fix: Update business API routes to use supabaseAdmin client)
       />
     </div>
   );
 }
 
+<<<<<<< HEAD
 // New Student Profile Modal Component with better data handling
 function StudentProfileModal({ 
   isOpen, 
@@ -1082,6 +1091,41 @@ function StudentProfileModal({
     } catch (err) {
       console.error('Network error fetching profile:', err);
       setError('Network error. Please try again.');
+=======
+// Student Profile Modal Component
+function StudentProfileModal({ 
+  isOpen, 
+  onClose, 
+  studentId 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  studentId?: string;
+}) {
+  const [studentData, setStudentData] = useState<{user: any, profile: any} | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && studentId) {
+      fetchStudentProfile();
+    }
+  }, [isOpen, studentId]);
+
+  const fetchStudentProfile = async () => {
+    if (!studentId) return;
+    
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/students/${studentId}/profile`);
+      if (response.ok) {
+        const data = await response.json();
+        setStudentData(data.data);
+      } else {
+        console.error('Failed to fetch student profile');
+      }
+    } catch (error) {
+      console.error('Error fetching student profile:', error);
+>>>>>>> 97dbc55 (fix: Update business API routes to use supabaseAdmin client)
     } finally {
       setLoading(false);
     }
@@ -1089,6 +1133,7 @@ function StudentProfileModal({
 
   if (!isOpen) return null;
 
+<<<<<<< HEAD
   // Use data from application first, then enhance with full profile if available
   const student = application?.student;
   const fullProfile = profileData?.profile;
@@ -1151,18 +1196,63 @@ function StudentProfileModal({
                         {fullProfile?.major && <span>{fullProfile.major}</span>}
                         {fullProfile?.major && fullProfile?.year && <span> • </span>}
                         {fullProfile?.year && <span>Class of {fullProfile.year}</span>}
+=======
+  return (
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Student Profile</h3>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <XMarkIcon className="w-5 h-5" />
+            </button>
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+            </div>
+          ) : studentData ? (
+            <div className="space-y-6">
+              {/* Basic Info */}
+              <div>
+                <div className="flex items-center space-x-4 mb-4">
+                  <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center">
+                    <span className="text-primary-600 text-xl font-bold">
+                      {studentData.user?.name?.charAt(0) || 'S'}
+                    </span>
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900">{studentData.user?.name}</h4>
+                    <p className="text-gray-600">{studentData.user?.email}</p>
+                    {studentData.profile && (
+                      <p className="text-sm text-gray-500">
+                        {studentData.profile.major} • Class of {studentData.profile.year}
+>>>>>>> 97dbc55 (fix: Update business API routes to use supabaseAdmin client)
                       </p>
                     )}
                   </div>
                 </div>
+<<<<<<< HEAD
                 
                 {fullProfile?.bio && (
                   <div className="mt-4 pt-4 border-t border-gray-200">
                     <p className="text-gray-700 leading-relaxed">{fullProfile.bio}</p>
+=======
+
+                {studentData.profile?.bio && (
+                  <div className="mb-4">
+                    <h5 className="font-medium text-gray-900 mb-2">About</h5>
+                    <p className="text-gray-700 text-sm leading-relaxed">{studentData.profile.bio}</p>
+>>>>>>> 97dbc55 (fix: Update business API routes to use supabaseAdmin client)
                   </div>
                 )}
               </div>
 
+<<<<<<< HEAD
               {/* Skills Section */}
               {((fullProfile?.skills?.length ?? 0) > 0 || (student?.skills?.length ?? 0) > 0) && (
                 <div>
@@ -1172,6 +1262,17 @@ function StudentProfileModal({
                       <span
                         key={index}
                         className="px-3 py-1.5 bg-blue-100 text-blue-800 text-sm font-medium rounded-full"
+=======
+              {/* Skills */}
+              {studentData.profile?.skills?.length > 0 && (
+                <div>
+                  <h5 className="font-medium text-gray-900 mb-3">Skills</h5>
+                  <div className="flex flex-wrap gap-2">
+                    {studentData.profile.skills.map((skill: string, index: number) => (
+                      <span
+                        key={index}
+                        className="px-3 py-1 bg-primary-100 text-primary-800 text-sm rounded-full"
+>>>>>>> 97dbc55 (fix: Update business API routes to use supabaseAdmin client)
                       >
                         {skill}
                       </span>
@@ -1180,6 +1281,7 @@ function StudentProfileModal({
                 </div>
               )}
 
+<<<<<<< HEAD
               {/* Links Section */}
               {(fullProfile?.linkedinUrl || fullProfile?.githubUrl || fullProfile?.personalWebsiteUrl || fullProfile?.resumeUrl || student?.resumeUrl) && (
                 <div>
@@ -1251,11 +1353,67 @@ function StudentProfileModal({
                   <h5 className="font-medium text-gray-900 mb-3">Work Samples & Projects</h5>
                   <div className="space-y-2">
                     {fullProfile.proofOfWorkUrls.map((url: string, index: number) => (
+=======
+              {/* Links */}
+              <div>
+                <h5 className="font-medium text-gray-900 mb-3">Professional Links</h5>
+                <div className="space-y-2">
+                  {studentData.profile?.linkedinUrl && (
+                    <a
+                      href={studentData.profile.linkedinUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center text-blue-600 hover:text-blue-800 text-sm"
+                    >
+                      LinkedIn Profile →
+                    </a>
+                  )}
+                  {studentData.profile?.githubUrl && (
+                    <a
+                      href={studentData.profile.githubUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center text-blue-600 hover:text-blue-800 text-sm"
+                    >
+                      GitHub Profile →
+                    </a>
+                  )}
+                  {studentData.profile?.personalWebsiteUrl && (
+                    <a
+                      href={studentData.profile.personalWebsiteUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center text-blue-600 hover:text-blue-800 text-sm"
+                    >
+                      Personal Website →
+                    </a>
+                  )}
+                  {studentData.profile?.resumeUrl && (
+                    <a
+                      href={studentData.profile.resumeUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center text-blue-600 hover:text-blue-800 text-sm"
+                    >
+                      Resume →
+                    </a>
+                  )}
+                </div>
+              </div>
+
+              {/* Proof of Work */}
+              {studentData.profile?.proofOfWorkUrls?.length > 0 && (
+                <div>
+                  <h5 className="font-medium text-gray-900 mb-3">Portfolio & Work Samples</h5>
+                  <div className="space-y-2">
+                    {studentData.profile.proofOfWorkUrls.map((url: string, index: number) => (
+>>>>>>> 97dbc55 (fix: Update business API routes to use supabaseAdmin client)
                       <a
                         key={index}
                         href={url}
                         target="_blank"
                         rel="noopener noreferrer"
+<<<<<<< HEAD
                         className="block p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors group"
                       >
                         <div className="flex items-center">
@@ -1265,12 +1423,20 @@ function StudentProfileModal({
                           </span>
                           <ArrowTopRightOnSquareIcon className="w-4 h-4 text-gray-400 ml-2" />
                         </div>
+=======
+                        className="block p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                      >
+                        <span className="text-blue-600 hover:text-blue-800 text-sm truncate">
+                          {url}
+                        </span>
+>>>>>>> 97dbc55 (fix: Update business API routes to use supabaseAdmin client)
                       </a>
                     ))}
                   </div>
                 </div>
               )}
 
+<<<<<<< HEAD
               {/* Availability Section */}
               {(fullProfile?.availabilitySlots?.length > 0 || fullProfile?.availableDays?.length > 0) && (
                 <div>
@@ -1330,10 +1496,35 @@ function StudentProfileModal({
                   <h5 className="font-medium text-gray-900 mb-3">Application Cover Note</h5>
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <p className="text-sm text-blue-900 leading-relaxed">{application.coverNote}</p>
+=======
+              {/* Availability */}
+              {studentData.profile?.availableDays?.length > 0 && (
+                <div>
+                  <h5 className="font-medium text-gray-900 mb-3">Meeting Availability</h5>
+                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <p className="text-sm text-green-800">
+                      <strong>Available Days:</strong> {studentData.profile.availableDays.join(', ')}
+                    </p>
+                    {studentData.profile.availableStartTime && studentData.profile.availableEndTime && (
+                      <p className="text-sm text-green-800 mt-1">
+                        <strong>Time:</strong> {studentData.profile.availableStartTime} - {studentData.profile.availableEndTime}
+                      </p>
+                    )}
+                    <p className="text-sm text-green-800 mt-1">
+                      <strong>Timezone:</strong> {studentData.profile.timezone?.replace('_', ' ').replace('America/', '').replace('Pacific/', '') || 'Not specified'}
+                    </p>
+>>>>>>> 97dbc55 (fix: Update business API routes to use supabaseAdmin client)
                   </div>
                 </div>
               )}
             </div>
+<<<<<<< HEAD
+=======
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-gray-600">Unable to load student profile</p>
+            </div>
+>>>>>>> 97dbc55 (fix: Update business API routes to use supabaseAdmin client)
           )}
         </div>
       </div>
