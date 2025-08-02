@@ -1,0 +1,3 @@
+[submodule "claude-code-workflow"]
+	path = claude-code-workflow
+	url = https://github.com/cbrane/claude-code-workflow.git
