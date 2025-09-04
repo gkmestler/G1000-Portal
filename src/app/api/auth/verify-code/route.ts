@@ -4,6 +4,8 @@ import { createClient } from '@supabase/supabase-js';
 import { signToken, createAuthResponse } from '@/lib/auth';
 import { validateBabsonEmail } from '@/lib/utils';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const { email, code } = await request.json();

@@ -4,6 +4,8 @@ import { supabaseAdmin } from '@/lib/supabase';
 
 console.log('Student profile route file loaded');
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
