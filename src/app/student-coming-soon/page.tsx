@@ -45,10 +45,8 @@ export default function StudentComingSoonPage() {
             </div>
           </div>
 
-          <h1 className="text-4xl md:text-5xl font-bold mb-6">
-            <span className="bg-gradient-to-r from-generator-dark via-generator-green to-generator-gold bg-clip-text text-transparent">
-              Babson Student Access
-            </span>
+          <h1 className="text-4xl md:text-5xl font-bold mb-6 text-generator-dark">
+            Babson Student Access
           </h1>
           
           <h2 className="text-3xl font-semibold text-gray-900 mb-6">
@@ -60,13 +58,26 @@ export default function StudentComingSoonPage() {
           </p>
 
           <div className="space-y-4">
+            <style jsx>{`
+              @keyframes greenGlow {
+                0%, 100% {
+                  box-shadow: 0 0 20px rgba(16, 185, 129, 0.5), 0 0 40px rgba(16, 185, 129, 0.3);
+                }
+                50% {
+                  box-shadow: 0 0 30px rgba(16, 185, 129, 0.7), 0 0 60px rgba(16, 185, 129, 0.5);
+                }
+              }
+              .glow-button {
+                animation: greenGlow 2s ease-in-out infinite;
+              }
+            `}</style>
             <a
               href="https://docs.google.com/forms/d/e/1FAIpQLSc-f6JBG3P4EoAZBAQdXxPthIS4hPT24sldcDB59MwJoLdDLQ/viewform?usp=header"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold rounded-lg bg-generator-green hover:bg-generator-dark text-white transition-colors duration-200"
+              className="glow-button inline-flex items-center justify-center px-8 py-4 text-lg font-semibold rounded-lg bg-white hover:bg-gray-50 text-generator-dark transition-colors duration-200 border border-generator-green"
             >
-              Request Priority Access
+              Request Access
             </a>
 
             <div className="pt-4">

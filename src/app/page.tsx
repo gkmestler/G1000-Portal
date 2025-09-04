@@ -74,10 +74,8 @@ export default function HomePage() {
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto text-center">
-          <h1 className="text-5xl md:text-7xl font-bold mb-6">
-            <span className="bg-gradient-to-r from-generator-dark via-generator-green to-generator-gold bg-clip-text text-transparent">
-              The G1000 Portal
-            </span>
+          <h1 className="text-5xl md:text-7xl font-bold mb-6 text-generator-dark">
+            The G1000 Portal
           </h1>
           
           <p className="text-xl md:text-2xl text-gray-600 mb-10 max-w-3xl mx-auto leading-relaxed">
@@ -138,7 +136,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              Two Powerful Dashboards
+              Two Dashboards
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
               The portal offers two dashboards: one for students and one for small business owners.
@@ -149,7 +147,7 @@ export default function HomePage() {
             {/* For Students */}
             <div className="bg-white rounded-2xl p-8 shadow-soft border border-gray-100">
               <div className="flex items-center mb-6">
-                <div className="w-12 h-12 bg-gradient-to-br from-generator-green to-generator-dark rounded-xl flex items-center justify-center">
+                <div className="w-12 h-12 bg-[#789b4a] rounded-xl flex items-center justify-center">
                   <AcademicCapIcon className="w-6 h-6 text-white" />
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900 ml-4">For Students</h3>
@@ -178,10 +176,10 @@ export default function HomePage() {
             {/* For Businesses */}
             <div className="bg-white rounded-2xl p-8 shadow-soft border border-gray-100">
               <div className="flex items-center mb-6">
-                <div className="w-12 h-12 bg-gradient-to-br from-generator-gold to-generator-dark rounded-xl flex items-center justify-center">
+                <div className="w-12 h-12 bg-[#789b4a] rounded-xl flex items-center justify-center">
                   <BuildingOfficeIcon className="w-6 h-6 text-white" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 ml-4">For Businesses</h3>
+                <h3 className="text-2xl font-bold text-gray-900 ml-4">For Business Owners</h3>
               </div>
               
               <ul className="space-y-4">
@@ -212,29 +210,15 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900 mb-12">
-              How the G1000 Portal Works
+              Eligibility
             </h2>
           </div>
           
-          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-            {/* For Business Owners */}
-            <div className="bg-white rounded-2xl p-8 shadow-soft border border-gray-100">
-              <div className="flex items-center mb-6">
-                <div className="w-12 h-12 bg-gradient-to-br from-generator-gold to-generator-dark rounded-xl flex items-center justify-center">
-                  <BuildingOfficeIcon className="w-6 h-6 text-white" />
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 ml-4">For Business Owners</h3>
-              </div>
-              <p className="text-gray-700 leading-relaxed">
-                Eligible to join if they&apos;ve attended a G1000 workshop or contributed to The Generator. 
-                Once signed up, they can easily post AI and automation opportunities for Babson students.
-              </p>
-            </div>
-            
+          <div className="grid md:grid-cols-2 gap-12">
             {/* For Students */}
             <div className="bg-white rounded-2xl p-8 shadow-soft border border-gray-100">
               <div className="flex items-center mb-6">
-                <div className="w-12 h-12 bg-gradient-to-br from-generator-green to-generator-dark rounded-xl flex items-center justify-center">
+                <div className="w-12 h-12 bg-[#789b4a] rounded-xl flex items-center justify-center">
                   <AcademicCapIcon className="w-6 h-6 text-white" />
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900 ml-4">For Students</h3>
@@ -242,6 +226,20 @@ export default function HomePage() {
               <p className="text-gray-700 leading-relaxed">
                 Babson students log in with their babson.edu email to view and apply for posted opportunities. 
                 Students who have led a G1000 Bootcamp receive priority access when applying.
+              </p>
+            </div>
+            
+            {/* For Business Owners */}
+            <div className="bg-white rounded-2xl p-8 shadow-soft border border-gray-100">
+              <div className="flex items-center mb-6">
+                <div className="w-12 h-12 bg-[#789b4a] rounded-xl flex items-center justify-center">
+                  <BuildingOfficeIcon className="w-6 h-6 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 ml-4">For Business Owners</h3>
+              </div>
+              <p className="text-gray-700 leading-relaxed">
+                Eligible to join if they&apos;ve attended a G1000 workshop or contributed to The Generator. 
+                Once signed up, they can easily post AI and automation opportunities for Babson students.
               </p>
             </div>
           </div>
@@ -259,10 +257,8 @@ export default function HomePage() {
             </div>
             
             <div className="flex space-x-6">
-              <Link href="/about" className="hover:text-white transition-colors">About</Link>
-              <Link href="/contact" className="hover:text-white transition-colors">Contact</Link>
-              <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
-              <Link href="/terms" className="hover:text-white transition-colors">Terms</Link>
+              <a href="https://www.babson.edu/thegenerator/" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">About</a>
+              <a href="mailto:gmestler1@babson.edu" className="hover:text-white transition-colors">Contact</a>
             </div>
           </div>
           

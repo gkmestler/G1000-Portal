@@ -104,7 +104,7 @@ export default function BusinessDashboardPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center space-x-4">
-              <div className="w-10 h-10 bg-gradient-to-br from-secondary-500 to-accent-500 rounded-full flex items-center justify-center">
+              <div className="w-10 h-10 bg-[#789b4a] rounded-full flex items-center justify-center">
                 <BuildingOfficeIcon className="w-6 h-6 text-white" />
               </div>
               <div>
