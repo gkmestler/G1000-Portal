@@ -11,6 +11,7 @@ import {
   ArrowRightOnRectangleIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
+import GeneratorLogo from '@/components/GeneratorLogo';
 
 interface BusinessUser {
   id: string;
@@ -49,15 +50,22 @@ export default function BusinessLayout({
           return;
         }
         
-        setUser(userData);
+        // Ensure we have complete user data before setting
+        if (userData && userData.businessProfile !== undefined) {
+          setUser(userData);
+          setLoading(false);
+        } else if (userData && userData.role === 'owner') {
+          // If businessProfile is missing, fetch it
+          console.log('Business profile missing, user data:', userData);
+          setUser(userData);
+          setLoading(false);
+        }
       } else {
         router.push('/business/login');
       }
     } catch (error) {
       console.error('Auth check failed:', error);
       router.push('/business/login');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -79,7 +87,8 @@ export default function BusinessLayout({
     return <>{children}</>;
   }
 
-  if (loading) {
+  // Show loading state while checking auth
+  if (loading || !user) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -90,11 +99,8 @@ export default function BusinessLayout({
     );
   }
 
-  if (!user) {
-    return null; // Will redirect in useEffect
-  }
-
-  if (user.businessProfile && !user.businessProfile.isApproved) {
+  // Only show pending approval if we have user data and they're not approved
+  if (user.businessProfile && user.businessProfile.isApproved === false) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="max-w-md w-full">
@@ -147,16 +153,15 @@ export default function BusinessLayout({
       {/* Top Navigation */}
       <nav className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
+          <div className="flex justify-between h-20">
             <div className="flex items-center">
               <Link href="/business/dashboard" className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-secondary-500 to-accent-500 rounded-lg flex items-center justify-center">
-                  <BuildingOfficeIcon className="w-5 h-5 text-white" />
-                </div>
-                <span className="text-xl font-bold text-gray-900">G1000 Business</span>
+                <GeneratorLogo height={48} />
+                <div className="h-10 w-px bg-gray-300"></div>
+                <span className="text-xl font-semibold text-generator-dark">G1000 Business</span>
               </Link>
 
-              <div className="ml-10 flex space-x-8">
+              <div className="ml-16 flex space-x-8">
                 {navigation.map((item) => {
                   const isActive = pathname === item.href;
                   return (

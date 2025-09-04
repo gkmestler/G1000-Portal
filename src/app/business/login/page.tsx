@@ -69,8 +69,13 @@ export default function BusinessLoginPage() {
       const data = await response.json();
 
       if (response.ok) {
+        console.log('Login successful, redirecting to dashboard...');
         toast.success('Welcome back to G1000 Portal!');
-        router.push('/business/dashboard');
+        // Add a small delay to ensure cookie is set before redirect
+        setTimeout(() => {
+          router.push('/business/dashboard');
+          router.refresh();
+        }, 100);
       } else {
         if (response.status === 403) {
           setErrors({ 

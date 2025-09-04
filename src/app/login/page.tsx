@@ -114,7 +114,11 @@ export default function StudentLoginPage() {
         if (mounted) {
           toast.success('Welcome to G1000 Portal!');
         }
-        router.push('/student/dashboard');
+        // Force redirect with a small delay to ensure cookie is set
+        setTimeout(() => {
+          router.push('/student/dashboard');
+          router.refresh(); // Force a refresh to ensure the new auth state is recognized
+        }, 100);
       } else {
         setErrors({ code: data.error || 'Invalid verification code' });
       }

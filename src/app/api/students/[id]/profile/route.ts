@@ -2,39 +2,59 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 
+console.log('Student profile route file loaded');
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  console.log('=== Student Profile API Called ===');
+  console.log('Student ID:', params.id);
+  console.log('URL:', request.url);
+  
   try {
-    let user;
+    // Get authenticated user using the same method as other business API routes
+    const user = await getUserFromRequest(request);
     
-    // In dev mode, create mock owner user for business context
-    if (process.env.DEV_MODE === 'true') {
-      const referer = request.headers.get('referer') || '';
-      const pathname = new URL(request.url).pathname;
-      
-      // For business API routes, always use owner context in dev mode
-      if (pathname.startsWith('/api/students') || referer.includes('/business')) {
-        user = {
-          id: '550e8400-e29b-41d4-a716-446655440001',
-          email: 'dev-owner@example.com',
-          name: 'Dev Business Owner',
-          role: 'owner' as const,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
-      }
-    }
+    // Debug logging
+    console.log('Student Profile API - Auth check:', {
+      hasUser: !!user,
+      userId: user?.id,
+      userRole: user?.role,
+      userEmail: user?.email,
+      studentId: params.id,
+      cookieNames: request.cookies.getAll().map(c => c.name),
+      authHeader: request.headers.get('authorization')
+    });
     
-    // Normal auth flow for production
     if (!user) {
-      user = await getUserFromRequest(request);
-    }
-    
-    if (!user || user.role !== 'owner') {
+      console.log('No user found from request');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    if (user.role !== 'owner') {
+      console.log('User is not an owner:', user.role);
+      return NextResponse.json({ error: 'Unauthorized - Not an owner' }, { status: 401 });
+    }
+    
+    console.log('Auth passed, fetching student data...');
+
+    // First, get all projects owned by this business owner
+    const { data: ownerProjects, error: projectsError } = await supabaseAdmin
+      .from('projects')
+      .select('id')
+      .eq('owner_id', user.id);
+
+    if (projectsError) {
+      console.error('Projects fetch error:', projectsError);
+      return NextResponse.json({ error: 'Failed to fetch projects' }, { status: 500 });
+    }
+
+    if (!ownerProjects || ownerProjects.length === 0) {
+      return NextResponse.json({ error: 'No projects found' }, { status: 403 });
+    }
+
+    const projectIds = ownerProjects.map(p => p.id);
 
     // Verify that this business owner has a legitimate reason to view this student profile
     // (i.e., the student has applied to one of their projects)
@@ -42,13 +62,7 @@ export async function GET(
       .from('applications')
       .select('id')
       .eq('student_id', params.id)
-      .in('project_id', 
-        await supabaseAdmin
-          .from('projects')
-          .select('id')
-          .eq('owner_id', user.id)
-          .then(result => result.data?.map(p => p.id) || [])
-      )
+      .in('project_id', projectIds)
       .limit(1);
 
     if (applicationError) {
@@ -127,6 +141,7 @@ export async function GET(
           availableStartTime: profile.available_start_time,
           availableEndTime: profile.available_end_time,
           timezone: profile.timezone || 'America/New_York',
+          availabilitySlots: profile.availability_slots || [],
           updatedAt: profile.updated_at
         }
       }
@@ -135,4 +150,4 @@ export async function GET(
     console.error('Student profile view error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-} 
+}

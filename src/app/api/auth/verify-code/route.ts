@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { verifyVerificationCode, signToken, createAuthResponse } from '@/lib/auth';
+import { createClient } from '@supabase/supabase-js';
+import { signToken, createAuthResponse } from '@/lib/auth';
 import { validateBabsonEmail } from '@/lib/utils';
 
 export async function POST(request: NextRequest) {
@@ -22,9 +23,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify the code
-    const isValidCode = await verifyVerificationCode(email, code);
-    if (!isValidCode) {
+    console.log('Verifying OTP:', { email: email.toLowerCase(), code, type: 'email' });
+
+    // Create a regular Supabase client for auth operations
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+
+    // Verify the OTP code using Supabase Auth with regular client
+    const { data: authData, error: authError } = await supabase.auth.verifyOtp({
+      email: email.toLowerCase(),
+      token: code,
+      type: 'email'
+    });
+
+    console.log('OTP verification result:', { 
+      success: !!authData?.user, 
+      error: authError,
+      userId: authData?.user?.id 
+    });
+
+    if (authError || !authData.user) {
+      console.error('OTP verification failed:', {
+        error: authError,
+        message: authError?.message,
+        status: authError?.status,
+        code: authError?.code
+      });
       return NextResponse.json(
         { error: 'Invalid or expired verification code' },
         { status: 400 }
@@ -45,7 +71,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user already exists
+    // Check if user already exists in our users table
     const { data: existingUser, error: fetchError } = await supabaseAdmin
       .from('users')
       .select('*')
@@ -59,6 +85,7 @@ export async function POST(request: NextRequest) {
       const { data: newUser, error: createError } = await supabaseAdmin
         .from('users')
         .insert({
+          id: authData.user.id, // Use Supabase Auth user ID
           email: email.toLowerCase(),
           name: participant.name,
           role: 'student',
@@ -99,15 +126,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate JWT token
+    // Generate JWT token for our app
     const token = await signToken({
       userId: user.id,
       email: user.email,
       role: user.role,
     });
 
-    // Create response with auth cookie
-    return createAuthResponse(token, user);
+    // Create response with auth cookie and Supabase session
+    const response = createAuthResponse(token, user);
+    
+    // Also set Supabase Auth cookies if we have a session
+    if (authData.session) {
+      response.cookies.set('sb-access-token', authData.session.access_token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+        path: '/',
+      });
+      response.cookies.set('sb-refresh-token', authData.session.refresh_token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 30, // 30 days
+        path: '/',
+      });
+    }
+
+    return response;
   } catch (error) {
     console.error('Verify code error:', error);
     return NextResponse.json(

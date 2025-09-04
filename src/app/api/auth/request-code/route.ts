@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { generateVerificationCode, storeVerificationCode } from '@/lib/auth';
-import { sendVerificationCode } from '@/lib/email';
 import { validateBabsonEmail } from '@/lib/utils';
 
 export async function POST(request: NextRequest) {
@@ -45,47 +43,34 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ Found participant:', participant.name);
 
-    // Generate and store verification code
-    const code = await generateVerificationCode();
-    console.log('📱 Generated verification code:', code);
-    
-    await storeVerificationCode(email, code);
-    console.log('💾 Stored verification code in database');
-
-    // Try to send verification code via email
-    try {
-      if (process.env.SENDGRID_API_KEY && process.env.SENDGRID_API_KEY !== 'placeholder-key') {
-        await sendVerificationCode(email, code);
-        console.log('📧 Email sent successfully');
-        
-        return NextResponse.json(
-          { message: 'Verification code sent successfully' },
-          { status: 200 }
-        );
-      } else {
-        // Development mode - return the code directly
-        console.log('🧪 Development mode: returning verification code directly');
-        return NextResponse.json(
-          { 
-            message: 'Verification code generated (development mode)',
-            verificationCode: code, // Only for development!
-            note: 'In production, this code would be sent via email'
-          },
-          { status: 200 }
-        );
+    // Use Supabase Auth to send OTP email (without emailRedirectTo to get just the code)
+    const { data, error } = await supabaseAdmin.auth.signInWithOtp({
+      email: email.toLowerCase(),
+      options: {
+        shouldCreateUser: true,
+        data: {
+          name: participant.name,
+          major: participant.major,
+          year: participant.year,
+          role: 'student'
+        }
       }
-    } catch (emailError) {
-      console.error('📧 Email sending failed:', emailError);
-      // If email fails, still return success but with the code for development
+    });
+
+    if (error) {
+      console.error('❌ Supabase OTP error:', error);
       return NextResponse.json(
-        { 
-          message: 'Verification code generated (email failed)',
-          verificationCode: code, // Only for development!
-          note: 'Email sending failed, but you can use this code'
-        },
-        { status: 200 }
+        { error: 'Failed to send verification code. Please try again.' },
+        { status: 500 }
       );
     }
+
+    console.log('📧 OTP email sent successfully via Supabase Auth');
+
+    return NextResponse.json(
+      { message: 'Verification code sent to your email!' },
+      { status: 200 }
+    );
 
   } catch (error) {
     console.error('💥 Request code error:', error);

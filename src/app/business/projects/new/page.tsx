@@ -40,6 +40,8 @@ export default function NewProjectPage() {
 
   const [skillInput, setSkillInput] = useState('');
   const [industryInput, setIndustryInput] = useState('');
+  const [customIndustry, setCustomIndustry] = useState('');
+  const [selectedDetails, setSelectedDetails] = useState<string[]>([]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -51,9 +53,16 @@ export default function NewProjectPage() {
       newErrors.typeExplanation = 'Please explain the type when selecting "other"';
     }
     if (formData.industryTags.length === 0) newErrors.industryTags = 'Industry is required';
-    if (!formData.duration.trim()) newErrors.duration = 'Duration is required';
-    if (!formData.compensationType) newErrors.compensationType = 'Compensation type is required';
-    if (!formData.compensationValue.trim()) newErrors.compensationValue = 'Compensation value is required';
+    
+    // Only validate selected optional details
+    if (selectedDetails.includes('duration') && !formData.duration.trim()) {
+      newErrors.duration = 'Duration is required when added';
+    }
+    if (selectedDetails.includes('compensation')) {
+      if (!formData.compensationType) newErrors.compensationType = 'Compensation type is required when added';
+      if (!formData.compensationValue.trim()) newErrors.compensationValue = 'Compensation value is required when added';
+    }
+    
     if (!formData.applyWindowStart) newErrors.applyWindowStart = 'Application start date is required';
     if (!formData.applyWindowEnd) newErrors.applyWindowEnd = 'Application end date is required';
 
@@ -71,9 +80,12 @@ export default function NewProjectPage() {
       }
     }
 
-    const validDeliverables = formData.deliverables.filter(d => d.trim());
-    if (validDeliverables.length === 0) {
-      newErrors.deliverables = 'At least one deliverable is required';
+    // Only validate deliverables if they're selected
+    if (selectedDetails.includes('deliverables')) {
+      const validDeliverables = formData.deliverables.filter(d => d.trim());
+      if (validDeliverables.length === 0) {
+        newErrors.deliverables = 'At least one deliverable is required when added';
+      }
     }
 
     setErrors(newErrors);
@@ -90,7 +102,15 @@ export default function NewProjectPage() {
     try {
       const submissionData = {
         ...formData,
-        deliverables: formData.deliverables.filter(d => d.trim())
+        // Only include deliverables if they were selected and have content
+        deliverables: selectedDetails.includes('deliverables') 
+          ? formData.deliverables.filter(d => d.trim())
+          : [],
+        // Clear out unselected optional fields
+        duration: selectedDetails.includes('duration') ? formData.duration : '',
+        compensationType: selectedDetails.includes('compensation') ? formData.compensationType : 'unpaid',
+        compensationValue: selectedDetails.includes('compensation') ? formData.compensationValue : '',
+        requiredSkills: selectedDetails.includes('skills') ? formData.requiredSkills : []
       };
 
       const response = await fetch('/api/business/projects', {
@@ -322,25 +342,50 @@ export default function NewProjectPage() {
                     </span>
                   ))}
                 </div>
-                <div className="flex space-x-2">
-                  <select
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                    value={industryInput}
-                    onChange={(e) => setIndustryInput(e.target.value)}
-                  >
-                    <option value="">Select an industry...</option>
-                    {INDUSTRY_TAGS.filter(tag => !formData.industryTags.includes(tag)).map((tag) => (
-                      <option key={tag} value={tag}>{tag}</option>
-                    ))}
-                  </select>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => addIndustryTag(industryInput)}
-                    disabled={!industryInput}
-                  >
-                    Add
-                  </Button>
+                <div className="space-y-2">
+                  <div className="flex space-x-2">
+                    <select
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      value={industryInput}
+                      onChange={(e) => {
+                        setIndustryInput(e.target.value);
+                        if (e.target.value !== 'other') {
+                          setCustomIndustry('');
+                        }
+                      }}
+                    >
+                      <option value="">Select an industry...</option>
+                      {INDUSTRY_TAGS.filter(tag => !formData.industryTags.includes(tag)).map((tag) => (
+                        <option key={tag} value={tag}>{tag}</option>
+                      ))}
+                      <option value="other">Other (custom)</option>
+                    </select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        if (industryInput === 'other' && customIndustry) {
+                          addIndustryTag(customIndustry);
+                          setCustomIndustry('');
+                        } else if (industryInput && industryInput !== 'other') {
+                          addIndustryTag(industryInput);
+                        }
+                        setIndustryInput('');
+                      }}
+                      disabled={!industryInput || (industryInput === 'other' && !customIndustry)}
+                    >
+                      Add
+                    </Button>
+                  </div>
+                  {industryInput === 'other' && (
+                    <input
+                      type="text"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      placeholder="Enter custom industry..."
+                      value={customIndustry}
+                      onChange={(e) => setCustomIndustry(e.target.value)}
+                    />
+                  )}
                 </div>
                 {errors.industryTags && (
                   <p className="mt-1 text-sm text-red-600">{errors.industryTags}</p>
@@ -357,145 +402,233 @@ export default function NewProjectPage() {
                 Opportunity Details
               </CardTitle>
               <CardDescription>
-                Specify the timeline, deliverables, and requirements
+                Add details about your opportunity as needed. Not all fields are required.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Duration * (estimated duration)
-                  </label>
+              {/* Detail Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Details to Add
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { id: 'duration', label: 'Duration' },
+                    { id: 'compensation', label: 'Compensation' },
+                    { id: 'deliverables', label: 'Deliverables' },
+                    { id: 'skills', label: 'Required Skills' }
+                  ].map((detail) => (
+                    <button
+                      key={detail.id}
+                      type="button"
+                      onClick={() => {
+                        if (selectedDetails.includes(detail.id)) {
+                          setSelectedDetails(selectedDetails.filter(d => d !== detail.id));
+                        } else {
+                          setSelectedDetails([...selectedDetails, detail.id]);
+                        }
+                      }}
+                      className={`px-4 py-2 rounded-lg border transition-colors ${
+                        selectedDetails.includes(detail.id)
+                          ? 'bg-primary-500 text-white border-primary-500'
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {selectedDetails.includes(detail.id) ? '✓ ' : '+ '}{detail.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Duration */}
+              {selectedDetails.includes('duration') && (
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <div className="flex justify-between items-start mb-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Duration (estimated)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDetails(selectedDetails.filter(d => d !== 'duration'))}
+                      className="text-gray-400 hover:text-red-600"
+                    >
+                      <XMarkIcon className="w-4 h-4" />
+                    </button>
+                  </div>
                   <input
                     type="text"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     placeholder="e.g., 6 weeks, 2-3 months, 10 hours/week for 8 weeks"
                     value={formData.duration}
                     onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
-                    required
                   />
                   {errors.duration && (
                     <p className="mt-1 text-sm text-red-600">{errors.duration}</p>
                   )}
                 </div>
+              )}
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Compensation Type *
-                  </label>
-                  <select
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                    value={formData.compensationType}
-                    onChange={(e) => setFormData({ ...formData, compensationType: e.target.value as ProjectForm['compensationType'] })}
-                    required
-                  >
-                    {COMPENSATION_TYPES.map((type) => (
-                      <option key={type} value={type}>
-                        {getCompensationTypeLabel(type)}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.compensationType && (
-                    <p className="mt-1 text-sm text-red-600">{errors.compensationType}</p>
-                  )}
-                </div>
-              </div>
-
-              <Input
-                label="Compensation Value *"
-                placeholder="e.g., $25/hour, $2,000 total, Great experience and portfolio piece"
-                value={formData.compensationValue}
-                onChange={(e) => setFormData({ ...formData, compensationValue: e.target.value })}
-                error={errors.compensationValue}
-                required
-              />
-
-              {/* Deliverables */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Opportunity Deliverables
-                </label>
-                <div className="space-y-3">
-                  {formData.deliverables.map((deliverable, index) => (
-                    <div key={index} className="flex space-x-2">
+              {/* Compensation */}
+              {selectedDetails.includes('compensation') && (
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <div className="flex justify-between items-start mb-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Compensation
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDetails(selectedDetails.filter(d => d !== 'compensation'))}
+                      className="text-gray-400 hover:text-red-600"
+                    >
+                      <XMarkIcon className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm text-gray-600 mb-1">
+                        Type
+                      </label>
+                      <select
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                        value={formData.compensationType}
+                        onChange={(e) => setFormData({ ...formData, compensationType: e.target.value as ProjectForm['compensationType'] })}
+                      >
+                        {COMPENSATION_TYPES.map((type) => (
+                          <option key={type} value={type}>
+                            {getCompensationTypeLabel(type)}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.compensationType && (
+                        <p className="mt-1 text-sm text-red-600">{errors.compensationType}</p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-600 mb-1">
+                        Value/Details
+                      </label>
                       <input
                         type="text"
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                        placeholder={`Deliverable ${index + 1}`}
-                        value={deliverable}
-                        onChange={(e) => updateDeliverable(index, e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                        placeholder="e.g., $25/hour, $2,000 total, Great experience"
+                        value={formData.compensationValue}
+                        onChange={(e) => setFormData({ ...formData, compensationValue: e.target.value })}
                       />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeDeliverable(index)}
-                        disabled={formData.deliverables.length === 1}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                      >
-                        <XMarkIcon className="w-4 h-4" />
-                      </Button>
+                      {errors.compensationValue && (
+                        <p className="mt-1 text-sm text-red-600">{errors.compensationValue}</p>
+                      )}
                     </div>
-                  ))}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={addDeliverable}
-                    className="w-full"
-                  >
-                    <PlusIcon className="w-4 h-4 mr-2" />
-                    Add Deliverable
-                  </Button>
+                  </div>
                 </div>
-                {errors.deliverables && (
-                  <p className="mt-1 text-sm text-red-600">{errors.deliverables}</p>
-                )}
-              </div>
+              )}
+
+              {/* Deliverables */}
+              {selectedDetails.includes('deliverables') && (
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <div className="flex justify-between items-start mb-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Opportunity Deliverables
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDetails(selectedDetails.filter(d => d !== 'deliverables'))}
+                      className="text-gray-400 hover:text-red-600"
+                    >
+                      <XMarkIcon className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="space-y-3">
+                    {formData.deliverables.map((deliverable, index) => (
+                      <div key={index} className="flex space-x-2">
+                        <input
+                          type="text"
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                          placeholder={`Deliverable ${index + 1}`}
+                          value={deliverable}
+                          onChange={(e) => updateDeliverable(index, e.target.value)}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeDeliverable(index)}
+                          disabled={formData.deliverables.length === 1}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <XMarkIcon className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={addDeliverable}
+                      className="w-full"
+                    >
+                      <PlusIcon className="w-4 h-4 mr-2" />
+                      Add Deliverable
+                    </Button>
+                  </div>
+                  {errors.deliverables && (
+                    <p className="mt-1 text-sm text-red-600">{errors.deliverables}</p>
+                  )}
+                </div>
+              )}
 
               {/* Required Skills */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Required Skills
-                </label>
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {formData.requiredSkills.map((skill, index) => (
-                    <span
-                      key={index}
-                      className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800"
+              {selectedDetails.includes('skills') && (
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <div className="flex justify-between items-start mb-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Required Skills
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDetails(selectedDetails.filter(d => d !== 'skills'))}
+                      className="text-gray-400 hover:text-red-600"
                     >
-                      {skill}
-                      <button
-                        type="button"
-                        onClick={() => removeSkill(skill)}
-                        className="ml-2 hover:text-green-600"
+                      <XMarkIcon className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {formData.requiredSkills.map((skill, index) => (
+                      <span
+                        key={index}
+                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800"
                       >
-                        <XMarkIcon className="w-4 h-4" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-                <div className="flex space-x-2">
-                  <select
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                    value={skillInput}
-                    onChange={(e) => setSkillInput(e.target.value)}
-                  >
-                    <option value="">Select a skill...</option>
-                    {SKILL_TAGS.filter(skill => !formData.requiredSkills.includes(skill)).map((skill) => (
-                      <option key={skill} value={skill}>{skill}</option>
+                        {skill}
+                        <button
+                          type="button"
+                          onClick={() => removeSkill(skill)}
+                          className="ml-2 hover:text-green-600"
+                        >
+                          <XMarkIcon className="w-4 h-4" />
+                        </button>
+                      </span>
                     ))}
-                  </select>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => addSkill(skillInput)}
-                    disabled={!skillInput}
-                  >
-                    Add
-                  </Button>
+                  </div>
+                  <div className="flex space-x-2">
+                    <select
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      value={skillInput}
+                      onChange={(e) => setSkillInput(e.target.value)}
+                    >
+                      <option value="">Select a skill...</option>
+                      {SKILL_TAGS.filter(skill => !formData.requiredSkills.includes(skill)).map((skill) => (
+                        <option key={skill} value={skill}>{skill}</option>
+                      ))}
+                    </select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => addSkill(skillInput)}
+                      disabled={!skillInput}
+                    >
+                      Add
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
 

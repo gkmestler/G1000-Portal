@@ -4,39 +4,6 @@ import { getUserFromRequest } from '@/lib/auth';
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Dev mode bypass - skip all authentication if DEV_MODE is enabled
-  if (process.env.DEV_MODE === 'true') {
-    // Still allow API routes and static files to pass through normally
-    if (
-      pathname.startsWith('/_next') ||
-      pathname.includes('.') ||
-      pathname === '/' ||
-      pathname === '/login' ||
-      pathname === '/business/register' ||
-      pathname === '/business/login'
-    ) {
-      return NextResponse.next();
-    }
-
-    // For protected routes in dev mode, inject a mock user into headers
-    const response = NextResponse.next();
-    
-    // Determine role based on path for dev mode
-    let devRole = 'student';
-    if (pathname.startsWith('/business')) {
-      devRole = 'owner';
-    } else if (pathname.startsWith('/admin')) {
-      devRole = 'admin';
-    }
-    
-    // Add dev mode headers to help with API routes
-    response.headers.set('x-dev-mode', 'true');
-    response.headers.set('x-dev-role', devRole);
-    
-    return response;
-  }
-
-  // Normal authentication flow for production
   // Skip middleware for API routes that don't need auth, static files, and public paths
   if (
     pathname.startsWith('/_next') ||
@@ -44,50 +11,11 @@ export async function middleware(request: NextRequest) {
     pathname.includes('.') ||
     pathname === '/' ||
     pathname === '/login' ||
+    pathname === '/student-coming-soon' ||
     pathname === '/business/register' ||
     pathname === '/business/login'
   ) {
-    // But in dev mode, we need to add headers for API routes too
-    if (process.env.DEV_MODE === 'true' && pathname.startsWith('/api/auth')) {
-      const response = NextResponse.next();
-      
-      // Determine role based on referer for API routes
-      const referer = request.headers.get('referer') || '';
-      let devRole = 'student';
-      
-      if (referer.includes('/business')) {
-        devRole = 'owner';
-      } else if (referer.includes('/admin')) {
-        devRole = 'admin';
-      }
-      
-      response.headers.set('x-dev-mode', 'true');
-      response.headers.set('x-dev-role', devRole);
-      
-      return response;
-    }
-    
     return NextResponse.next();
-  }
-
-  // For all other routes in dev mode, set appropriate headers
-  if (process.env.DEV_MODE === 'true') {
-    const response = NextResponse.next();
-    
-    // Determine role based on path and referer
-    const referer = request.headers.get('referer') || '';
-    let devRole = 'student';
-    
-    if (pathname.startsWith('/business') || pathname.startsWith('/api/business') || referer.includes('/business')) {
-      devRole = 'owner';
-    } else if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin') || referer.includes('/admin')) {
-      devRole = 'admin';
-    }
-    
-    response.headers.set('x-dev-mode', 'true');
-    response.headers.set('x-dev-role', devRole);
-    
-    return response;
   }
 
   // Check authentication for protected routes
@@ -114,7 +42,13 @@ export async function middleware(request: NextRequest) {
   }
 
   // API route protection
-  if (pathname.startsWith('/api/student') && user.role !== 'student') {
+  // Note: /api/students routes can be accessed by business owners viewing student profiles
+  if (pathname.startsWith('/api/students')) {
+    // Allow business owners to access student profiles for applicants
+    if (user.role !== 'owner' && user.role !== 'student') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+  } else if (pathname.startsWith('/api/student') && user.role !== 'student') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

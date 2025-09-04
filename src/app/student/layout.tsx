@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { User } from '@/types';
+import GeneratorLogo from '@/components/GeneratorLogo';
 
 interface StudentLayoutProps {
   children: React.ReactNode;
@@ -74,17 +75,19 @@ export default function StudentLayout({ children }: StudentLayoutProps) {
       {/* Navigation Header */}
       <nav className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
+          <div className="flex justify-between h-20">
             <div className="flex">
               {/* Logo */}
               <div className="flex-shrink-0 flex items-center">
-                <Link href="/student/dashboard" className="text-2xl font-bold text-gradient">
-                  G1000 Portal
+                <Link href="/student/dashboard" className="flex items-center space-x-3">
+                  <GeneratorLogo height={48} />
+                  <div className="h-10 w-px bg-gray-300"></div>
+                  <span className="text-xl font-semibold text-generator-dark">G1000 Portal</span>
                 </Link>
               </div>
 
               {/* Desktop Navigation */}
-              <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
+              <div className="hidden lg:ml-12 lg:flex lg:space-x-8">
                 {navigation.map((item) => {
                   const isActive = pathname === item.href;
                   return (
@@ -106,7 +109,7 @@ export default function StudentLayout({ children }: StudentLayoutProps) {
             </div>
 
             {/* Right side */}
-            <div className="hidden sm:ml-6 sm:flex sm:items-center space-x-4">
+            <div className="hidden lg:ml-6 lg:flex lg:items-center space-x-4">
               <span className="text-sm text-gray-700">
                 Welcome, {user?.name?.split(' ')[0]}
               </span>
@@ -116,7 +119,7 @@ export default function StudentLayout({ children }: StudentLayoutProps) {
             </div>
 
             {/* Mobile menu button */}
-            <div className="sm:hidden flex items-center">
+            <div className="lg:hidden flex items-center">
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 className="text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500 p-2 rounded-md"
@@ -138,7 +141,7 @@ export default function StudentLayout({ children }: StudentLayoutProps) {
 
         {/* Mobile menu */}
         {mobileMenuOpen && (
-          <div className="sm:hidden">
+          <div className="lg:hidden">
             <div className="pt-2 pb-3 space-y-1 bg-white border-t border-gray-200">
               {navigation.map((item) => {
                 const isActive = pathname === item.href;
