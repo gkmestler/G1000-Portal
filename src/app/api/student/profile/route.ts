@@ -23,7 +23,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { bio, linkedinUrl, githubUrl, personalWebsiteUrl, skills, proofOfWorkUrls, availableDays, availableStartTime, availableEndTime, availabilitySlots, timezone } = body;
+    const { bio, linkedinUrl, githubUrl, personalWebsiteUrl, profilePhotoUrl, skills, proofOfWorkUrls, availableDays, availableStartTime, availableEndTime, availabilitySlots, timezone } = body;
 
     // Validate URLs
     const urlFields = { linkedinUrl, githubUrl, personalWebsiteUrl };
@@ -69,6 +69,7 @@ export async function PUT(request: NextRequest) {
       linkedin_url: linkedinUrl || null,
       github_url: githubUrl || null,
       personal_website_url: personalWebsiteUrl || null,
+      profile_photo_url: profilePhotoUrl || null,
       skills: skills || [],
       proof_of_work_urls: proofOfWorkUrls || [],
       // Legacy availability fields (kept for backward compatibility)
@@ -127,6 +128,7 @@ export async function PUT(request: NextRequest) {
         githubUrl: result.data.github_url,
         personalWebsiteUrl: result.data.personal_website_url,
         resumeUrl: result.data.resume_url,
+        profilePhotoUrl: result.data.profile_photo_url,
         skills: result.data.skills || [],
         proofOfWorkUrls: result.data.proof_of_work_urls || [],
         // Legacy availability fields

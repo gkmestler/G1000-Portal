@@ -59,7 +59,7 @@ export function createSearchParams(params: Record<string, string | number | bool
 }
 
 // Transform snake_case database fields to camelCase for frontend
-export const transformProject = (dbProject: any): Project => {
+export const transformProject = (dbProject: any): Project & any => {
   return {
     id: dbProject.id,
     title: dbProject.title,
@@ -78,7 +78,17 @@ export const transformProject = (dbProject: any): Project => {
     ownerId: dbProject.owner_id || dbProject.ownerId,
     createdAt: dbProject.created_at || dbProject.createdAt,
     updatedAt: dbProject.updated_at || dbProject.updatedAt,
-    applications: dbProject.applications || []
+    applications: dbProject.applications || [],
+    // AI Consultation fields
+    isAiConsultation: dbProject.is_ai_consultation === true,
+    currentSoftwareTools: dbProject.current_software_tools || '',
+    painPoints: dbProject.pain_points || '',
+    // Additional optional fields
+    estimatedDuration: dbProject.estimated_duration || '',
+    estimatedHoursPerWeek: dbProject.estimated_hours_per_week || '',
+    budget: dbProject.budget || '',
+    location: dbProject.location || 'remote',
+    onsiteLocation: dbProject.onsite_location || ''
   };
 };
 

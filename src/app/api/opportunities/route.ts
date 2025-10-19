@@ -1,10 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getUserFromRequest } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
+    // Try to get current user (student) if logged in
+    let currentUserId: string | null = null;
+
+    try {
+      const user = await getUserFromRequest(request);
+      if (user && user.role === 'student') {
+        currentUserId = user.id;
+      }
+    } catch (error) {
+      // User not authenticated, that's ok for public viewing
+      console.log('User not authenticated, showing public view');
+    }
+
+    // In dev mode, use mock student ID if no authenticated user
+    if (!currentUserId && process.env.DEV_MODE === 'true') {
+      const referer = request.headers.get('referer') || '';
+      if (referer.includes('/student')) {
+        currentUserId = '550e8400-e29b-41d4-a716-446655440000'; // Mock student ID
+      }
+    }
+
     const url = new URL(request.url);
     const search = url.searchParams.get('search');
     const industry = url.searchParams.get('industry');
@@ -16,8 +38,15 @@ export async function GET(request: NextRequest) {
 
     let query = supabaseAdmin
       .from('projects')
-      .select('*')
-      .eq('status', 'open');
+      .select('*');
+
+    // Try to filter by status if the column exists
+    // Remove this try-catch once the status column is added to the database
+    try {
+      query = query.eq('status', 'open');
+    } catch (error) {
+      console.warn('Status column may not exist yet, fetching all projects');
+    }
 
     // Apply filters
     if (search) {
@@ -57,6 +86,75 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch opportunities' }, { status: 500 });
     }
 
+    // Fetch user's applications if logged in
+    let userApplications: any = {};
+    if (currentUserId) {
+      const { data: applications } = await supabaseAdmin
+        .from('applications')
+        .select('project_id, status, id')
+        .eq('student_id', currentUserId);
+
+      if (applications) {
+        applications.forEach(app => {
+          userApplications[app.project_id] = {
+            applicationId: app.id,
+            status: app.status
+          };
+        });
+      }
+    }
+
+    // Fetch business owner profiles for all projects
+    const ownerIds = [...new Set(projects.map(p => p.owner_id).filter(Boolean))];
+    let businessProfiles: any = {};
+
+    if (ownerIds.length > 0) {
+      const { data: profiles } = await supabaseAdmin
+        .from('business_owner_profiles')
+        .select(`
+          user_id,
+          company_name,
+          contact_name,
+          phone,
+          address,
+          city,
+          state,
+          zip_code,
+          industry_tags,
+          website_url,
+          description,
+          logo_url,
+          linkedin_url,
+          founded,
+          employee_count,
+          is_approved
+        `)
+        .in('user_id', ownerIds);
+
+      if (profiles) {
+        profiles.forEach(profile => {
+          businessProfiles[profile.user_id] = profile;
+        });
+      }
+
+      // Fetch user information
+      const { data: users } = await supabaseAdmin
+        .from('users')
+        .select('id, name, email')
+        .in('id', ownerIds);
+
+      if (users) {
+        users.forEach(user => {
+          if (businessProfiles[user.id]) {
+            businessProfiles[user.id].user = {
+              name: user.name,
+              email: user.email
+            };
+          }
+        });
+      }
+    }
+
     const formattedProjects = projects.map(project => ({
       id: project.id,
       ownerId: project.owner_id,
@@ -65,25 +163,44 @@ export async function GET(request: NextRequest) {
       type: project.type,
       typeExplanation: project.type_explanation,
       industryTags: project.industry_tags || [],
-      duration: project.duration,
+      duration: project.estimated_duration || project.duration,
+      estimatedDuration: project.estimated_duration,
+      estimatedHoursPerWeek: project.estimated_hours_per_week,
       deliverables: project.deliverables || [],
       compensationType: project.compensation_type,
       compensationValue: project.compensation_value,
+      budget: project.budget,
+      location: project.location,
+      onsiteLocation: project.onsite_location,
+      isAiConsultation: project.is_ai_consultation,
+      currentSoftwareTools: project.current_software_tools,
+      painPoints: project.pain_points,
       applyWindowStart: project.apply_window_start,
       applyWindowEnd: project.apply_window_end,
       requiredSkills: project.required_skills || [],
       status: project.status,
       createdAt: project.created_at,
       updatedAt: project.updated_at,
-      owner: {
-        companyName: 'Business Owner',
-        websiteUrl: null,
-        isApproved: true,
-        user: {
-          name: 'Business Owner',
-          email: 'owner@example.com'
-        }
-      }
+      owner: businessProfiles[project.owner_id] ? {
+        userId: businessProfiles[project.owner_id].user_id,
+        companyName: businessProfiles[project.owner_id].company_name,
+        contactName: businessProfiles[project.owner_id].contact_name,
+        phone: businessProfiles[project.owner_id].phone,
+        address: businessProfiles[project.owner_id].address,
+        city: businessProfiles[project.owner_id].city,
+        state: businessProfiles[project.owner_id].state,
+        zipCode: businessProfiles[project.owner_id].zip_code,
+        industryTags: businessProfiles[project.owner_id].industry_tags || [],
+        websiteUrl: businessProfiles[project.owner_id].website_url,
+        description: businessProfiles[project.owner_id].description,
+        logoUrl: businessProfiles[project.owner_id].logo_url,
+        linkedinUrl: businessProfiles[project.owner_id].linkedin_url,
+        founded: businessProfiles[project.owner_id].founded,
+        employeeCount: businessProfiles[project.owner_id].employee_count,
+        isApproved: businessProfiles[project.owner_id].is_approved,
+        user: businessProfiles[project.owner_id].user || null
+      } : null,
+      userApplication: userApplications[project.id] || null
     }));
 
     return NextResponse.json({

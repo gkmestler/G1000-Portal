@@ -6,18 +6,30 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
-import { AcademicCapIcon } from '@heroicons/react/24/outline';
+import { AcademicCapIcon, ArrowLeftIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import GeneratorLogo from '@/components/GeneratorLogo';
 import toast from 'react-hot-toast';
 
 export default function StudentLoginPage() {
   const router = useRouter();
-  const [step, setStep] = useState<'email' | 'code'>('email');
+  const [authMethod, setAuthMethod] = useState<'password' | 'code'>('password');
+  const [step, setStep] = useState<'email' | 'code' | 'create-password'>('email');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [code, setCode] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; code?: string }>({});
-  const [devCode, setDevCode] = useState<string>(''); // For development mode
-  const [mounted, setMounted] = useState(false); // Fix hydration
+  const [errors, setErrors] = useState<{
+    email?: string;
+    code?: string;
+    password?: string;
+    confirmPassword?: string;
+  }>({});
+  const [devCode, setDevCode] = useState<string>('');
+  const [mounted, setMounted] = useState(false);
+  const [hasPassword, setHasPassword] = useState<boolean | null>(null);
 
   // Fix hydration mismatch
   useEffect(() => {
@@ -40,9 +52,13 @@ export default function StudentLoginPage() {
     return '';
   };
 
-  const handleRequestCode = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const validatePassword = (password: string) => {
+    if (!password) return 'Password is required';
+    if (password.length < 8) return 'Password must be at least 8 characters';
+    return '';
+  };
+
+  const checkUserStatus = async () => {
     const emailError = validateEmail(email);
     if (emailError) {
       setErrors({ email: emailError });
@@ -51,7 +67,40 @@ export default function StudentLoginPage() {
 
     setLoading(true);
     setErrors({});
-    setDevCode(''); // Clear any previous dev code
+
+    try {
+      const response = await fetch('/api/auth/check-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setHasPassword(data.hasPassword);
+        if (!data.hasPassword) {
+          // First time user - send verification code
+          await handleRequestCode();
+        } else {
+          // User has password - stop loading and show password field
+          setLoading(false);
+        }
+      } else {
+        // User doesn't exist - treat as first-time
+        setHasPassword(false);
+        await handleRequestCode();
+      }
+    } catch {
+      setErrors({ email: 'Network error. Please try again.' });
+      setLoading(false);
+    }
+  };
+
+  const handleRequestCode = async () => {
+    setLoading(true);
+    setErrors({});
+    setDevCode('');
 
     try {
       const response = await fetch('/api/auth/request-code', {
@@ -64,7 +113,7 @@ export default function StudentLoginPage() {
 
       if (response.ok) {
         setStep('code');
-        // If we got a verification code back (development mode), store it
+        setAuthMethod('code');
         if (data.verificationCode) {
           setDevCode(data.verificationCode);
           if (mounted) {
@@ -89,9 +138,62 @@ export default function StudentLoginPage() {
     }
   };
 
+  const handlePasswordLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const emailError = validateEmail(email);
+    const passwordError = validatePassword(password);
+
+    if (emailError || passwordError) {
+      setErrors({
+        email: emailError,
+        password: passwordError
+      });
+      return;
+    }
+
+    setLoading(true);
+    setErrors({});
+
+    try {
+      const response = await fetch('/api/auth/login-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        if (mounted) {
+          toast.success('Welcome back!');
+        }
+        // Use window.location for a full page navigation to ensure cookies are properly set
+        setTimeout(() => {
+          window.location.href = '/student/dashboard';
+        }, 500);
+      } else {
+        if (response.status === 401) {
+          setErrors({ password: 'Invalid email or password' });
+        } else if (response.status === 404) {
+          // User hasn't set password yet
+          setHasPassword(false);
+          setAuthMethod('code');
+          await handleRequestCode();
+        } else {
+          setErrors({ password: data.error || 'Login failed' });
+        }
+      }
+    } catch {
+      setErrors({ password: 'Network error. Please try again.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const codeError = validateCode(code);
     if (codeError) {
       setErrors({ code: codeError });
@@ -111,14 +213,18 @@ export default function StudentLoginPage() {
       const data = await response.json();
 
       if (response.ok) {
-        if (mounted) {
-          toast.success('Welcome to G1000 Portal!');
+        // Check if user needs to create a password
+        if (!data.hasPassword) {
+          setStep('create-password');
+        } else {
+          if (mounted) {
+            toast.success('Welcome to G1000 Portal!');
+          }
+          // Use window.location for a full page navigation to ensure cookies are properly set
+          setTimeout(() => {
+            window.location.href = '/student/dashboard';
+          }, 500);
         }
-        // Force redirect with a small delay to ensure cookie is set
-        setTimeout(() => {
-          router.push('/student/dashboard');
-          router.refresh(); // Force a refresh to ensure the new auth state is recognized
-        }, 100);
       } else {
         setErrors({ code: data.error || 'Invalid verification code' });
       }
@@ -129,24 +235,84 @@ export default function StudentLoginPage() {
     }
   };
 
+  const handleCreatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      setErrors({ password: passwordError });
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setErrors({ confirmPassword: 'Passwords do not match' });
+      return;
+    }
+
+    setLoading(true);
+    setErrors({});
+
+    try {
+      const response = await fetch('/api/auth/set-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        if (mounted) {
+          toast.success('Password created successfully!');
+        }
+        // Use window.location for a full page navigation to ensure cookies are properly set
+        setTimeout(() => {
+          window.location.href = '/student/dashboard';
+        }, 500);
+      } else {
+        setErrors({ password: data.error || 'Failed to create password' });
+      }
+    } catch {
+      setErrors({ password: 'Network error. Please try again.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmitEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (hasPassword === null) {
+      await checkUserStatus();
+    } else if (hasPassword) {
+      await handlePasswordLogin(e);
+    } else {
+      await handleRequestCode();
+    }
+  };
+
   const handleBackToEmail = () => {
     setStep('email');
     setCode('');
+    setPassword('');
+    setConfirmPassword('');
     setErrors({});
     setDevCode('');
+    setAuthMethod('password');
+    setHasPassword(null);
   };
 
   // Don't render until mounted to prevent hydration issues
   if (!mounted) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-white flex flex-col justify-center py-12 sm:px-6 lg:px-8">
         <div className="sm:mx-auto sm:w-full sm:max-w-md">
           <div className="flex justify-center">
-            <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-accent-500 rounded-full flex items-center justify-center">
+            <div className="w-16 h-16 bg-[#789b4a] rounded-xl flex items-center justify-center">
               <AcademicCapIcon className="w-8 h-8 text-white" />
             </div>
           </div>
-          <h2 className="mt-6 text-center text-3xl font-bold text-gray-900">
+          <h2 className="mt-6 text-center text-3xl font-bold text-generator-dark">
             Student Portal
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
@@ -158,73 +324,154 @@ export default function StudentLoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="flex justify-center">
-          <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-accent-500 rounded-full flex items-center justify-center">
-            <AcademicCapIcon className="w-8 h-8 text-white" />
-          </div>
-        </div>
-        <h2 className="mt-6 text-center text-3xl font-bold text-gray-900">
-          Student Portal
-        </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
-          Sign in with your Babson email address
-        </p>
+    <div className="min-h-screen bg-white overflow-hidden">
+      {/* Background Elements */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-generator-green/5 blur-3xl" />
+        <div className="absolute top-1/2 -left-40 w-80 h-80 rounded-full bg-generator-dark/5 blur-3xl" />
+        <div className="absolute -bottom-40 right-1/4 w-80 h-80 rounded-full bg-generator-gold/5 blur-3xl" />
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <Card>
+      {/* Header */}
+      <header className="bg-white/80 backdrop-blur-lg shadow-soft border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-5">
+            <Link href="/" className="flex items-center space-x-3">
+              <GeneratorLogo height={48} />
+              <div className="h-10 w-px bg-gray-300"></div>
+              <h1 className="text-xl font-semibold text-generator-dark">
+                G1000 Portal
+              </h1>
+            </Link>
+            <Link href="/">
+              <Button
+                variant="ghost"
+                icon={<ArrowLeftIcon className="w-4 h-4" />}
+              >
+                Back to Home
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      <div className="flex flex-col justify-center py-12 sm:px-6 lg:px-8 mt-16">
+        <div className="sm:mx-auto sm:w-full sm:max-w-md">
+          <div className="flex justify-center">
+            <div className="w-16 h-16 bg-[#789b4a] rounded-xl flex items-center justify-center">
+              <AcademicCapIcon className="w-8 h-8 text-white" />
+            </div>
+          </div>
+          <h2 className="mt-6 text-center text-3xl font-bold text-generator-dark">
+            Student Portal
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            {step === 'create-password'
+              ? 'Create your password'
+              : 'Sign in with your Babson email address'
+            }
+          </p>
+        </div>
+
+        <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+          <Card className="shadow-soft border-gray-100">
           <CardHeader>
             <CardTitle>
-              {step === 'email' ? 'Enter Your Email' : 'Enter Verification Code'}
+              {step === 'email' && 'Enter Your Email'}
+              {step === 'code' && 'Enter Verification Code'}
+              {step === 'create-password' && 'Create Your Password'}
             </CardTitle>
             <CardDescription>
-              {step === 'email' 
-                ? 'We\'ll send you a verification code to sign in'
-                : `We sent a 6-digit code to ${email}`
-              }
+              {step === 'email' && (hasPassword ? 'Enter your password to sign in' : "We'll help you sign in")}
+              {step === 'code' && `We sent a 6-digit code to ${email}`}
+              {step === 'create-password' && 'Set up a password for future logins'}
             </CardDescription>
           </CardHeader>
-          
+
           <CardContent>
             {/* Development Mode Code Display */}
             {step === 'code' && devCode && (
-              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <div className="text-sm text-yellow-800">
+              <div className="mb-4 p-3 bg-generator-gold/10 border border-generator-gold/20 rounded-lg">
+                <div className="text-sm text-generator-dark">
                   <strong>🧪 Development Mode</strong>
                 </div>
                 <div className="text-lg font-mono mt-1">
                   Your verification code: <strong>{devCode}</strong>
                 </div>
-                <div className="text-xs text-yellow-600 mt-1">
+                <div className="text-xs text-gray-600 mt-1">
                   (In production, this would be sent to your email)
                 </div>
               </div>
             )}
-            
+
             {step === 'email' ? (
-              <form onSubmit={handleRequestCode} className="space-y-6">
+              <form onSubmit={handleSubmitEmail} className="space-y-6">
                 <Input
                   label="Babson Email"
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setHasPassword(null); // Reset status when email changes
+                  }}
                   placeholder="yourname@babson.edu"
                   error={errors.email}
                   required
                 />
-                
+
+                {hasPassword && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Password <span className="text-error-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <Input
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Enter your password"
+                        error={errors.password}
+                        required
+                        className="pr-12"
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? (
+                          <EyeSlashIcon className="w-5 h-5" />
+                        ) : (
+                          <EyeIcon className="w-5 h-5" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <Button
                   type="submit"
                   className="w-full"
                   loading={loading}
-                  disabled={!email}
+                  disabled={!email || (hasPassword && !password)}
                 >
-                  Send Verification Code
+                  {hasPassword ? 'Sign In' : 'Continue'}
                 </Button>
+
+                {hasPassword && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthMethod('code');
+                      handleRequestCode();
+                    }}
+                    className="w-full text-sm text-generator-green hover:text-generator-dark transition-colors"
+                  >
+                    Sign in with verification code instead
+                  </button>
+                )}
               </form>
-            ) : (
+            ) : step === 'code' ? (
               <form onSubmit={handleVerifyCode} className="space-y-6">
                 <Input
                   label="Verification Code"
@@ -236,7 +483,7 @@ export default function StudentLoginPage() {
                   maxLength={6}
                   required
                 />
-                
+
                 <div className="space-y-3">
                   <Button
                     type="submit"
@@ -244,9 +491,9 @@ export default function StudentLoginPage() {
                     loading={loading}
                     disabled={code.length !== 6}
                   >
-                    Sign In
+                    Verify Code
                   </Button>
-                  
+
                   <Button
                     type="button"
                     variant="ghost"
@@ -257,19 +504,87 @@ export default function StudentLoginPage() {
                   </Button>
                 </div>
               </form>
+            ) : (
+              <form onSubmit={handleCreatePassword} className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    New Password <span className="text-error-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="At least 8 characters"
+                      error={errors.password}
+                      required
+                      className="pr-12"
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <EyeSlashIcon className="w-5 h-5" />
+                      ) : (
+                        <EyeIcon className="w-5 h-5" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Confirm Password <span className="text-error-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Enter password again"
+                      error={errors.confirmPassword}
+                      required
+                      className="pr-12"
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    >
+                      {showConfirmPassword ? (
+                        <EyeSlashIcon className="w-5 h-5" />
+                      ) : (
+                        <EyeIcon className="w-5 h-5" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full"
+                  loading={loading}
+                  disabled={!password || !confirmPassword}
+                >
+                  Create Password & Sign In
+                </Button>
+              </form>
             )}
           </CardContent>
         </Card>
 
-        <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600">
-            Are you a business owner?{' '}
-            <Link href="/business/login" className="font-medium text-primary-600 hover:text-primary-500">
-              Sign in here
-            </Link>
-          </p>
+          <div className="mt-6 text-center">
+            <p className="text-sm text-gray-600">
+              Are you a business owner?{' '}
+              <Link href="/business/login" className="font-medium text-generator-green hover:text-generator-dark transition-colors">
+                Sign in here
+              </Link>
+            </p>
+          </div>
         </div>
       </div>
     </div>
   );
-} 
+}

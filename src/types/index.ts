@@ -23,6 +23,7 @@ export interface StudentProfile {
   githubUrl?: string;
   personalWebsiteUrl?: string;
   resumeUrl?: string;
+  profilePhotoUrl?: string;
   skills: string[];
   proofOfWorkUrls: string[];
   // Legacy availability fields (kept for backward compatibility)
@@ -39,8 +40,19 @@ export interface StudentProfile {
 export interface BusinessOwnerProfile {
   userId: string;
   companyName: string;
+  contactName?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
   industryTags: string[];
   websiteUrl?: string;
+  description?: string;
+  logoUrl?: string;
+  linkedinUrl?: string;
+  founded?: string;
+  employeeCount?: string;
   isApproved: boolean;
   createdAt: string;
   updatedAt: string;
@@ -52,16 +64,22 @@ export interface Project {
   ownerId: string;
   title: string;
   description: string;
-  type: 'project-based' | 'internship' | 'micro-internship' | 'consulting-gig' | 'other';
-  typeExplanation?: string;
+  type: 'project-based' | 'internship' | 'consulting';
+  isAiConsultation?: boolean;
+  currentSoftwareTools?: string;
+  painPoints?: string;
   industryTags: string[];
-  duration: string;
-  deliverables: string[];
-  compensationType: 'unpaid' | 'hourly-wage' | 'salary' | 'stipend' | 'commission' | 'hourly-commission' | 'other';
-  compensationValue: string;
+  estimatedDuration?: string;
+  estimatedHoursPerWeek?: string;
+  compensationType?: 'paid-hourly' | 'paid-stipend' | 'paid-fixed' | 'paid-salary' | 'equity' | 'experience' | 'other';
+  compensationValue?: string;
+  budget?: string;
+  deliverables?: string[];
+  location?: 'remote' | 'hybrid' | 'onsite';
+  onsiteLocation?: string;
   applyWindowStart: string;
   applyWindowEnd: string;
-  requiredSkills: string[];
+  requiredSkills?: string[];
   status: 'open' | 'closed';
   createdAt: string;
   updatedAt: string;
@@ -80,6 +98,7 @@ export interface Application {
   invitedAt?: string;
   rejectedAt?: string;
   meetingDateTime?: string;
+  meetingLink?: string;
   reflectionOwner?: string;
   reflectionStudent?: string;
   project?: Project;
@@ -123,16 +142,22 @@ export interface LoginForm {
 export interface ProjectForm {
   title: string;
   description: string;
-  type: 'project-based' | 'internship' | 'micro-internship' | 'consulting-gig' | 'other';
-  typeExplanation?: string;
+  type: 'project-based' | 'internship' | 'consulting';
+  isAiConsultation?: boolean;
+  currentSoftwareTools?: string;
+  painPoints?: string;
   industryTags: string[];
-  duration: string;
-  deliverables: string[];
-  compensationType: 'unpaid' | 'hourly-wage' | 'salary' | 'stipend' | 'commission' | 'hourly-commission' | 'other';
-  compensationValue: string;
+  estimatedDuration?: string;
+  estimatedHoursPerWeek?: string;
+  compensationType?: 'paid-hourly' | 'paid-stipend' | 'paid-fixed' | 'paid-salary' | 'equity' | 'experience' | 'other';
+  compensationValue?: string;
+  budget?: string;
+  deliverables?: string[];
+  location?: 'remote' | 'hybrid' | 'onsite';
+  onsiteLocation?: string;
   applyWindowStart: string;
   applyWindowEnd: string;
-  requiredSkills: string[];
+  requiredSkills?: string[];
 }
 
 export interface ApplicationForm {
@@ -158,28 +183,42 @@ export const ROLES = ['student', 'owner', 'admin'] as const;
 export const APPLICATION_STATUSES = ['submitted', 'underReview', 'interviewScheduled', 'accepted', 'rejected'] as const;
 export const PROJECT_STATUSES = ['open', 'closed'] as const;
 export const COMPENSATION_TYPES = [
-  'unpaid',
-  'hourly-wage',
-  'salary',
-  'stipend',
-  'commission',
-  'hourly-commission',
+  'paid-hourly',
+  'paid-stipend',
+  'paid-fixed',
+  'paid-salary',
+  'equity',
+  'experience',
   'other'
 ] as const;
 
 export const PROJECT_TYPES = [
   'project-based',
   'internship',
-  'micro-internship',
-  'consulting-gig',
-  'other'
+  'consulting'
 ] as const;
 
 export const DURATION_OPTIONS = [
-  '< 4 weeks',
+  'Less than 4 weeks',
   '4-8 weeks',
-  '8-12 weeks',
-  '> 12 weeks'
+  '2-3 months',
+  '3-6 months',
+  'Ongoing',
+  'Custom'
+] as const;
+
+export const HOURS_PER_WEEK_OPTIONS = [
+  'Less than 5 hours',
+  '5-10 hours',
+  '10-20 hours',
+  '20-30 hours',
+  '30+ hours'
+] as const;
+
+export const LOCATION_OPTIONS = [
+  'remote',
+  'hybrid',
+  'onsite'
 ] as const;
 
 export const INDUSTRY_TAGS = [

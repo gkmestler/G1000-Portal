@@ -29,21 +29,21 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
     const cardContent = (
       <div
         className={clsx(
-          'relative transition-all duration-300 transform-gpu',
+          'relative',
           {
             // Base styles
             'bg-white': variant !== 'glass' && variant !== 'gradient',
-            
+
             // Variants
-            'shadow-soft hover:shadow-xl': variant === 'elevated',
-            'border border-gray-200 hover:border-gray-300': variant === 'bordered',
+            'shadow-soft': variant === 'elevated',
+            'border border-gray-200': variant === 'bordered',
             'bg-white/80 backdrop-blur-md border border-white/20 shadow-xl': variant === 'glass',
             'bg-gradient-to-br from-white to-gray-50 shadow-soft': variant === 'gradient',
-            'shadow-soft hover:shadow-xl hover:-translate-y-1 cursor-pointer': variant === 'interactive',
-            
-            // Hover effects
-            'hover:shadow-lg hover:scale-[1.02]': hover && variant !== 'interactive',
-            'hover:shadow-glow': glowOnHover,
+            'shadow-soft cursor-pointer': variant === 'interactive',
+
+            // Hover effects (removed scale and shadow animations)
+            '': hover && variant !== 'interactive',
+            '': glowOnHover,
             
             // Shadow
             'shadow-none': shadow === 'none' || variant === 'flat',
@@ -84,17 +84,6 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
         {children}
       </div>
     );
-
-    if (variant === 'interactive') {
-      return (
-        <motion.div
-          whileHover={{ y: -4, transition: { duration: 0.2 } }}
-          whileTap={{ scale: 0.98 }}
-        >
-          {cardContent}
-        </motion.div>
-      );
-    }
 
     return cardContent;
   }

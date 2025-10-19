@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
           title,
           description,
           industry_tags,
-          duration,
+          estimated_duration,
           compensation_type,
           compensation_value,
           owner_id
@@ -59,6 +59,30 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch applications' }, { status: 500 });
     }
 
+    // Get unique owner IDs
+    const ownerIds = [...new Set(applications
+      .filter(app => app.projects?.owner_id)
+      .map(app => app.projects.owner_id))];
+
+    // Fetch business owner profiles for all owners
+    let ownerProfiles: Record<string, { companyName: string; logoUrl: string | null }> = {};
+    if (ownerIds.length > 0) {
+      const { data: profiles, error: profilesError } = await supabaseAdmin
+        .from('business_owner_profiles')
+        .select('user_id, company_name, logo_url')
+        .in('user_id', ownerIds);
+
+      if (!profilesError && profiles) {
+        ownerProfiles = profiles.reduce((acc, profile) => {
+          acc[profile.user_id] = {
+            companyName: profile.company_name,
+            logoUrl: profile.logo_url
+          };
+          return acc;
+        }, {} as Record<string, { companyName: string; logoUrl: string | null }>);
+      }
+    }
+
     const formattedApplications = applications.map(app => ({
       id: app.id,
       projectId: app.project_id,
@@ -70,6 +94,7 @@ export async function GET(request: NextRequest) {
       invitedAt: app.invited_at,
       rejectedAt: app.rejected_at,
       meetingDateTime: app.meeting_date_time,
+      meetingLink: app.meeting_link,
       reflectionOwner: app.reflection_owner,
       reflectionStudent: app.reflection_student,
       project: app.projects ? {
@@ -77,10 +102,12 @@ export async function GET(request: NextRequest) {
         title: app.projects.title,
         description: app.projects.description,
         industryTags: app.projects.industry_tags,
-        duration: app.projects.duration,
+        duration: app.projects.estimated_duration,
         compensationType: app.projects.compensation_type,
         compensationValue: app.projects.compensation_value,
-        ownerId: app.projects.owner_id
+        ownerId: app.projects.owner_id,
+        companyName: ownerProfiles[app.projects.owner_id]?.companyName || 'Unknown Company',
+        companyLogoUrl: ownerProfiles[app.projects.owner_id]?.logoUrl || null
       } : null
     }));
 

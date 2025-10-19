@@ -97,6 +97,7 @@ export async function GET(
           invitedAt: app.invited_at,
           rejectedAt: app.rejected_at,
           meetingDateTime: app.meeting_date_time,
+          meetingLink: app.meeting_link,
           reflectionOwner: app.reflection_owner,
           reflectionStudent: app.reflection_student,
           student: studentUser ? {

@@ -24,6 +24,12 @@ interface BusinessUser {
   };
 }
 
+interface BusinessProfile {
+  companyName?: string;
+  logoUrl?: string;
+  contactName?: string;
+}
+
 export default function BusinessLayout({
   children,
 }: {
@@ -32,11 +38,81 @@ export default function BusinessLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<BusinessUser | null>(null);
+  const [profile, setProfile] = useState<BusinessProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showSignOutMenu, setShowSignOutMenu] = useState(false);
 
   useEffect(() => {
     checkAuth();
   }, []);
+
+  useEffect(() => {
+    if (user && user.role === 'owner') {
+      fetchProfile();
+    }
+  }, [user]);
+
+  // Fetch profile on page focus to get latest updates
+  useEffect(() => {
+    const handleFocus = () => {
+      if (user && user.role === 'owner') {
+        fetchProfile();
+      }
+    };
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'profileUpdated') {
+        fetchProfile();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [user]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.sign-out-dropdown')) {
+        setShowSignOutMenu(false);
+      }
+    };
+
+    if (showSignOutMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showSignOutMenu]);
+
+  const fetchProfile = async () => {
+    try {
+      const response = await fetch('/api/business/profile', {
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Fetched profile in layout:', data.data);
+        setProfile(data.data);
+      } else if (response.status === 404) {
+        // Profile doesn't exist yet
+        console.log('Profile not found in layout');
+        setProfile({
+          companyName: '',
+          contactName: '',
+          logoUrl: ''
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching profile in layout:', error);
+    }
+  };
 
   const checkAuth = async () => {
     try {
@@ -183,26 +259,51 @@ export default function BusinessLayout({
             </div>
 
             <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-3">
+              <Link href="/business/profile" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
                 <div className="text-right">
                   <p className="text-sm font-medium text-gray-900">
-                    {user.businessProfile?.companyName || user.name}
+                    {profile?.contactName || user.name || 'Business Owner'}
                   </p>
-                  <p className="text-xs text-gray-500">{user.email}</p>
+                  <p className="text-xs text-gray-500">
+                    {profile?.companyName || 'Update Profile'}
+                  </p>
                 </div>
-                <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center">
-                  <BuildingOfficeIcon className="w-4 h-4 text-white" />
+                <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden border-2 border-generator-green">
+                  {profile?.logoUrl ? (
+                    <img
+                      src={profile.logoUrl}
+                      alt={profile?.companyName || 'Profile'}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <BuildingOfficeIcon className="w-5 h-5 text-gray-400" />
+                  )}
                 </div>
-              </div>
+              </Link>
 
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleLogout}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <ArrowRightOnRectangleIcon className="w-4 h-4" />
-              </Button>
+              <div className="h-8 w-px bg-gray-300"></div>
+
+              <div className="relative sign-out-dropdown">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowSignOutMenu(!showSignOutMenu)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <ArrowRightOnRectangleIcon className="w-4 h-4" />
+                </Button>
+
+                {showSignOutMenu && (
+                  <div className="absolute right-0 mt-2 w-32 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
+                    <button
+                      onClick={handleLogout}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                    >
+                      Sign out
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

@@ -60,39 +60,8 @@ export default function StudentDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome Banner */}
-        <div className="gradient-bg rounded-xl p-8 mb-8 text-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">
-                Welcome back, {user?.name || 'Student'}!
-              </h1>
-              <div className="flex items-center space-x-4">
-                <span className="bg-white/20 px-3 py-1 rounded-full text-sm font-medium">
-                  G1000 Alumni
-                </span>
-                {profile && (
-                  <span className="bg-white/20 px-3 py-1 rounded-full text-sm font-medium">
-                    Class of {profile.year}
-                  </span>
-                )}
-              </div>
-            </div>
-            <div className="hidden md:block">
-              <div className="text-right">
-                <p className="text-white/80 text-sm">Ready to find your next opportunity?</p>
-                <Link href="/student/opportunities">
-                  <Button variant="outline" className="mt-2 border-white text-white hover:bg-white hover:text-primary-600">
-                    Browse Projects
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-
+    <div className="bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card hover>

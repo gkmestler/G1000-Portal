@@ -135,9 +135,30 @@ export async function POST(request: NextRequest) {
       role: user.role,
     });
 
-    // Create response with auth cookie and Supabase session
-    const response = createAuthResponse(token, user);
-    
+    // Check if user has a password
+    const hasPassword = user.has_set_password || false;
+
+    // Create response with auth cookie
+    const response = NextResponse.json({
+      message: 'Verification successful',
+      hasPassword,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role
+      }
+    });
+
+    // Set auth cookie
+    response.cookies.set('auth-token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+      path: '/',
+    });
+
     // Also set Supabase Auth cookies if we have a session
     if (authData.session) {
       response.cookies.set('sb-access-token', authData.session.access_token, {

@@ -102,10 +102,9 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
               'placeholder:text-gray-400',
               {
                 // Base padding
-                'px-4 py-2.5': !icon && !isPasswordField,
-                'pl-10 pr-4 py-2.5': icon && iconPosition === 'left' && !isPasswordField,
-                'pl-4 pr-10 py-2.5': icon && iconPosition === 'right' && !isPasswordField,
-                'pr-10': isPasswordField && showPasswordToggle,
+                'px-4 py-2.5': !icon,
+                'pl-10 pr-4 py-2.5': icon && iconPosition === 'left',
+                'pl-4 pr-10 py-2.5': icon && iconPosition === 'right',
                 
                 // Rounded
                 'rounded-md': rounded === 'sm',

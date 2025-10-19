@@ -52,6 +52,7 @@ export async function GET(request: NextRequest) {
           githubUrl: profile.github_url,
           personalWebsiteUrl: profile.personal_website_url,
           resumeUrl: profile.resume_url,
+          profilePhotoUrl: profile.profile_photo_url,
           skills: profile.skills || [],
           proofOfWorkUrls: profile.proof_of_work_urls || [],
           // Legacy availability fields

@@ -6,11 +6,22 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Try to get current user (student) if logged in
+    let currentUserId: string | null = null;
+
+    // In dev mode, use mock student ID
+    if (process.env.DEV_MODE === 'true') {
+      const referer = request.headers.get('referer') || '';
+      if (referer.includes('/student')) {
+        currentUserId = '550e8400-e29b-41d4-a716-446655440000'; // Mock student ID
+      }
+    }
+
+    // First get the project (don't filter by status so students can view closed projects they applied to)
     const { data: project, error: projectError } = await supabaseAdmin
       .from('projects')
       .select('*')
       .eq('id', params.id)
-      .eq('status', 'open')
       .single();
 
     if (projectError) {
@@ -20,6 +31,75 @@ export async function GET(
       console.error('Project fetch error:', projectError);
       return NextResponse.json({ error: 'Failed to fetch opportunity' }, { status: 500 });
     }
+
+    // Fetch owner profile if project has an owner
+    let ownerProfile = null;
+    if (project.owner_id) {
+      const { data: profile } = await supabaseAdmin
+        .from('business_owner_profiles')
+        .select('*')
+        .eq('user_id', project.owner_id)
+        .single();
+
+      if (profile) {
+        // Fetch user details for the owner
+        const { data: user } = await supabaseAdmin
+          .from('users')
+          .select('id, email, name')
+          .eq('id', project.owner_id)
+          .single();
+
+        ownerProfile = {
+          ...profile,
+          user: user
+        };
+      }
+    }
+
+    // Fetch user's application if logged in
+    let userApplication = null;
+    if (currentUserId) {
+      const { data: application } = await supabaseAdmin
+        .from('applications')
+        .select('id, status')
+        .eq('project_id', params.id)
+        .eq('student_id', currentUserId)
+        .single();
+
+      if (application) {
+        userApplication = {
+          applicationId: application.id,
+          status: application.status
+        };
+      }
+    }
+
+    // Format the owner data
+    const ownerData = ownerProfile ? {
+      userId: ownerProfile.user_id,
+      companyName: ownerProfile.company_name,
+      contactName: ownerProfile.contact_name,
+      phone: ownerProfile.phone,
+      address: ownerProfile.address,
+      city: ownerProfile.city,
+      state: ownerProfile.state,
+      zipCode: ownerProfile.zip_code,
+      industryTags: ownerProfile.industry_tags || [],
+      websiteUrl: ownerProfile.website_url,
+      description: ownerProfile.description,
+      logoUrl: ownerProfile.logo_url,
+      linkedinUrl: ownerProfile.linkedin_url,
+      founded: ownerProfile.founded,
+      employeeCount: ownerProfile.employee_count,
+      isApproved: ownerProfile.is_approved,
+      createdAt: ownerProfile.created_at,
+      updatedAt: ownerProfile.updated_at,
+      user: ownerProfile.user ? {
+        id: ownerProfile.user.id,
+        email: ownerProfile.user.email,
+        name: ownerProfile.user.name
+      } : null
+    } : null;
 
     const formattedProject = {
       id: project.id,
@@ -39,15 +119,8 @@ export async function GET(
       status: project.status,
       createdAt: project.created_at,
       updatedAt: project.updated_at,
-      owner: {
-        companyName: 'Business Owner',
-        websiteUrl: null,
-        isApproved: true,
-        user: {
-          name: 'Business Owner',
-          email: 'owner@example.com'
-        }
-      }
+      owner: ownerData,
+      userApplication
     };
 
     return NextResponse.json({ data: formattedProject });

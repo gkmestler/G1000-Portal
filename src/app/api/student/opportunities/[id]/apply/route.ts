@@ -37,22 +37,11 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { coverNote, proofOfWorkUrl } = body;
+    const { coverNote } = body;
 
     // Validate input
     if (!coverNote || !coverNote.trim()) {
       return NextResponse.json({ error: 'Cover note is required' }, { status: 400 });
-    }
-
-    if (!proofOfWorkUrl || !proofOfWorkUrl.trim()) {
-      return NextResponse.json({ error: 'Proof of work URL is required' }, { status: 400 });
-    }
-
-    // Validate URL format
-    try {
-      new URL(proofOfWorkUrl);
-    } catch (error) {
-      return NextResponse.json({ error: 'Invalid proof of work URL format' }, { status: 400 });
     }
 
     // Check if project exists and is open for applications
@@ -99,7 +88,7 @@ export async function POST(
         project_id: params.id,
         student_id: user.id,
         cover_note: coverNote.trim(),
-        proof_of_work_url: proofOfWorkUrl.trim(),
+        proof_of_work_url: '', // Empty string for backward compatibility
         status: 'submitted',
         submitted_at: new Date().toISOString()
       })

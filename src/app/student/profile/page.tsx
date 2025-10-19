@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { StudentProfile, User, SKILL_TAGS, AvailabilitySlot } from '@/types';
 import { WeeklyAvailability } from '@/components/WeeklyAvailability';
+import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
 
 export default function StudentProfilePage() {
   const [user, setUser] = useState<User | null>(null);
@@ -20,6 +21,7 @@ export default function StudentProfilePage() {
     linkedinUrl: '',
     githubUrl: '',
     personalWebsiteUrl: '',
+    profilePhotoUrl: '',
     skills: [] as string[],
     proofOfWorkUrls: [] as string[],
     // Legacy availability fields (for backward compatibility)
@@ -33,6 +35,21 @@ export default function StudentProfilePage() {
 
   const [newSkill, setNewSkill] = useState('');
   const [newProofOfWork, setNewProofOfWork] = useState('');
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [selectedPhotoFile, setSelectedPhotoFile] = useState<File | null>(null);
+  const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string>('');
+  const [availabilityExpanded, setAvailabilityExpanded] = useState(false);
+  const [savingPhoto, setSavingPhoto] = useState(false);
+
+  // Helper function to format URLs properly
+  const formatUrl = (url: string): string => {
+    if (!url) return '';
+    // If URL doesn't start with http:// or https://, add https://
+    if (!url.match(/^https?:\/\//i)) {
+      return `https://${url}`;
+    }
+    return url;
+  };
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -49,6 +66,7 @@ export default function StudentProfilePage() {
               linkedinUrl: data.data.profile.linkedinUrl || '',
               githubUrl: data.data.profile.githubUrl || '',
               personalWebsiteUrl: data.data.profile.personalWebsiteUrl || '',
+              profilePhotoUrl: data.data.profile.profilePhotoUrl || '',
               skills: data.data.profile.skills || [],
               proofOfWorkUrls: data.data.profile.proofOfWorkUrls || [],
               availableDays: data.data.profile.availableDays || [],
@@ -57,6 +75,10 @@ export default function StudentProfilePage() {
               availabilitySlots: data.data.profile.availabilitySlots || [],
               timezone: data.data.profile.timezone || 'America/New_York'
             });
+            // Set preview URL if profile photo exists
+            if (data.data.profile.profilePhotoUrl) {
+              setPreviewPhotoUrl(data.data.profile.profilePhotoUrl);
+            }
           }
         }
       } catch (error) {
@@ -70,10 +92,29 @@ export default function StudentProfilePage() {
   }, []);
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    // Format URLs for professional links
+    if (['linkedinUrl', 'githubUrl', 'personalWebsiteUrl'].includes(field) && value) {
+      // Only format if user has finished typing (on blur will handle this)
+      setFormData(prev => ({
+        ...prev,
+        [field]: value
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [field]: value
+      }));
+    }
+  };
+
+  const handleUrlBlur = (field: string) => {
+    const value = formData[field as keyof typeof formData] as string;
+    if (value && value.trim()) {
+      setFormData(prev => ({
+        ...prev,
+        [field]: formatUrl(value.trim())
+      }));
+    }
   };
 
   const addSkill = () => {
@@ -94,12 +135,15 @@ export default function StudentProfilePage() {
   };
 
   const addProofOfWork = () => {
-    if (newProofOfWork.trim() && !formData.proofOfWorkUrls.includes(newProofOfWork.trim())) {
-      setFormData(prev => ({
-        ...prev,
-        proofOfWorkUrls: [...prev.proofOfWorkUrls, newProofOfWork.trim()]
-      }));
-      setNewProofOfWork('');
+    if (newProofOfWork.trim()) {
+      const formattedUrl = formatUrl(newProofOfWork.trim());
+      if (!formData.proofOfWorkUrls.includes(formattedUrl)) {
+        setFormData(prev => ({
+          ...prev,
+          proofOfWorkUrls: [...prev.proofOfWorkUrls, formattedUrl]
+        }));
+        setNewProofOfWork('');
+      }
     }
   };
 
@@ -113,20 +157,98 @@ export default function StudentProfilePage() {
   const toggleAvailableDay = (day: string) => {
     setFormData(prev => ({
       ...prev,
-      availableDays: prev.availableDays.includes(day) 
+      availableDays: prev.availableDays.includes(day)
         ? prev.availableDays.filter(d => d !== day)
         : [...prev.availableDays, day]
     }));
   };
 
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file size (5MB max)
+      if (file.size > 5 * 1024 * 1024) {
+        setMessage('Photo must be less than 5MB');
+        return;
+      }
 
+      // Validate file type
+      const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+      if (!validTypes.includes(file.type)) {
+        setMessage('Please upload a JPEG, PNG, or WebP image');
+        return;
+      }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
+      setSelectedPhotoFile(file);
+      // Create preview URL
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewPhotoUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const uploadPhoto = async (file: File): Promise<string | null> => {
+    if (!user) return null;
+
+    setUploadingPhoto(true);
+    try {
+      // Generate unique filename
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/profile-${Date.now()}.${fileExt}`;
+
+      // Upload to Supabase storage
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('fileName', fileName);
+
+      const response = await fetch('/api/student/upload-photo', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return data.url;
+      } else {
+        console.error('Failed to upload photo');
+        return null;
+      }
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      return null;
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const removePhoto = () => {
+    setSelectedPhotoFile(null);
+    setPreviewPhotoUrl('');
+    setFormData(prev => ({ ...prev, profilePhotoUrl: '' }));
+  };
+
+  const savePhoto = async () => {
+    if (!selectedPhotoFile && !formData.profilePhotoUrl) return;
+
+    setSavingPhoto(true);
     setMessage('');
 
-    console.log('Submitting profile data:', formData);
+    let photoUrl = formData.profilePhotoUrl;
+
+    // Upload photo if selected
+    if (selectedPhotoFile) {
+      const uploadedUrl = await uploadPhoto(selectedPhotoFile);
+      if (uploadedUrl) {
+        photoUrl = uploadedUrl;
+        setSelectedPhotoFile(null); // Clear the file after successful upload
+      } else {
+        setMessage('Failed to upload photo');
+        setSavingPhoto(false);
+        return;
+      }
+    }
 
     try {
       const response = await fetch('/api/student/profile', {
@@ -134,7 +256,50 @@ export default function StudentProfilePage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({ ...formData, profilePhotoUrl: photoUrl })
+      });
+
+      if (response.ok) {
+        setMessage('Profile photo updated successfully!');
+        setFormData(prev => ({ ...prev, profilePhotoUrl: photoUrl }));
+      } else {
+        setMessage('Failed to update profile photo');
+      }
+    } catch (error) {
+      console.error('Failed to save photo:', error);
+      setMessage('Failed to save profile photo');
+    } finally {
+      setSavingPhoto(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setMessage('');
+
+    let finalFormData = { ...formData };
+
+    // Upload photo if selected
+    if (selectedPhotoFile) {
+      const photoUrl = await uploadPhoto(selectedPhotoFile);
+      if (photoUrl) {
+        finalFormData.profilePhotoUrl = photoUrl;
+        setSelectedPhotoFile(null); // Clear the file after successful upload
+      } else {
+        setMessage('Failed to upload photo, but saving other changes...');
+      }
+    }
+
+    console.log('Submitting profile data:', finalFormData);
+
+    try {
+      const response = await fetch('/api/student/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(finalFormData)
       });
 
       if (response.ok) {
@@ -199,6 +364,96 @@ export default function StudentProfilePage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-8">
+          {/* Profile Photo */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Profile Photo</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-start space-x-6">
+                {/* Photo Preview */}
+                <div className="flex-shrink-0">
+                  <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-100 border-2 border-gray-300">
+                    {previewPhotoUrl ? (
+                      <img
+                        src={previewPhotoUrl}
+                        alt="Profile"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-400">
+                        <svg className="w-16 h-16" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Upload Controls */}
+                <div className="flex-1">
+                  <div className="space-y-2">
+                    <p className="text-sm text-gray-600">
+                      Upload a professional photo to help business owners recognize you.
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      JPG, PNG or WebP. Max size 5MB.
+                    </p>
+                    <div className="flex space-x-2 mt-4">
+                      <label htmlFor="photo-upload" className="cursor-pointer">
+                        <input
+                          id="photo-upload"
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          onChange={handlePhotoSelect}
+                          className="hidden"
+                          disabled={uploadingPhoto || savingPhoto}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            document.getElementById('photo-upload')?.click();
+                          }}
+                          disabled={uploadingPhoto || savingPhoto}
+                        >
+                          {uploadingPhoto ? 'Uploading...' : 'Choose Photo'}
+                        </Button>
+                      </label>
+                      {previewPhotoUrl && (
+                        <>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={removePhoto}
+                            className="text-red-600 hover:text-red-700"
+                            disabled={savingPhoto}
+                          >
+                            Remove
+                          </Button>
+                          {selectedPhotoFile && (
+                            <Button
+                              type="button"
+                              variant="primary"
+                              size="sm"
+                              onClick={savePhoto}
+                              disabled={savingPhoto}
+                            >
+                              {savingPhoto ? 'Saving...' : 'Save Photo'}
+                            </Button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Basic Information */}
           <Card>
             <CardHeader>
@@ -283,26 +538,29 @@ export default function StudentProfilePage() {
               <div className="space-y-4">
                 <Input
                   label="LinkedIn URL"
-                  type="url"
+                  type="text"
                   value={formData.linkedinUrl}
                   onChange={(e) => handleInputChange('linkedinUrl', e.target.value)}
-                  placeholder="https://linkedin.com/in/yourprofile"
+                  onBlur={() => handleUrlBlur('linkedinUrl')}
+                  placeholder="linkedin.com/in/yourprofile"
                 />
 
                 <Input
                   label="GitHub URL"
-                  type="url"
+                  type="text"
                   value={formData.githubUrl}
                   onChange={(e) => handleInputChange('githubUrl', e.target.value)}
-                  placeholder="https://github.com/yourusername"
+                  onBlur={() => handleUrlBlur('githubUrl')}
+                  placeholder="github.com/yourusername"
                 />
 
                 <Input
                   label="Personal Website URL"
-                  type="url"
+                  type="text"
                   value={formData.personalWebsiteUrl}
                   onChange={(e) => handleInputChange('personalWebsiteUrl', e.target.value)}
-                  placeholder="https://yourwebsite.com"
+                  onBlur={() => handleUrlBlur('personalWebsiteUrl')}
+                  placeholder="yourwebsite.com"
                 />
               </div>
             </CardContent>
@@ -367,10 +625,10 @@ export default function StudentProfilePage() {
               <div className="space-y-4">
                 <div className="flex space-x-2">
                   <Input
-                    type="url"
+                    type="text"
                     value={newProofOfWork}
                     onChange={(e) => setNewProofOfWork(e.target.value)}
-                    placeholder="Add a link to your work (GitHub repo, portfolio, etc.)"
+                    placeholder="github.com/yourproject or yourportfolio.com"
                     onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addProofOfWork())}
                   />
                   <Button type="button" onClick={addProofOfWork} variant="outline">
@@ -385,7 +643,7 @@ export default function StudentProfilePage() {
                       className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                     >
                       <a
-                        href={url}
+                        href={formatUrl(url)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:text-blue-800 truncate flex-1 mr-2"
@@ -410,20 +668,39 @@ export default function StudentProfilePage() {
 
           {/* Meeting Availability */}
           <Card>
-            <CardHeader>
-              <CardTitle>Meeting Availability</CardTitle>
-              <p className="text-sm text-gray-600">
-                Set your flexible availability - different time ranges for different days
-              </p>
+            <CardHeader className="pb-6">
+              <div
+                className="flex items-center justify-between cursor-pointer py-2"
+                onClick={() => setAvailabilityExpanded(!availabilityExpanded)}
+              >
+                <div className="flex-1 pr-4">
+                  <CardTitle className="mb-2">Meeting Availability</CardTitle>
+                  <p className="text-sm text-gray-600 leading-relaxed">
+                    Set your flexible availability - different time ranges for different days
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  {availabilityExpanded ? (
+                    <ChevronUpIcon className="w-5 h-5 text-gray-600" />
+                  ) : (
+                    <ChevronDownIcon className="w-5 h-5 text-gray-600" />
+                  )}
+                </button>
+              </div>
             </CardHeader>
-            <CardContent>
-              <WeeklyAvailability
-                slots={formData.availabilitySlots}
-                onChange={handleAvailabilitySlotsChange}
-                timezone={formData.timezone}
-                onTimezoneChange={handleTimezoneChange}
-              />
-            </CardContent>
+            {availabilityExpanded && (
+              <CardContent>
+                <WeeklyAvailability
+                  slots={formData.availabilitySlots}
+                  onChange={handleAvailabilitySlotsChange}
+                  timezone={formData.timezone}
+                  onTimezoneChange={handleTimezoneChange}
+                />
+              </CardContent>
+            )}
           </Card>
 
           {/* Save Button */}

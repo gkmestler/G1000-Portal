@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { 
+import {
   PlusIcon,
   EyeIcon,
   PencilIcon,
@@ -14,24 +14,98 @@ import {
   CurrencyDollarIcon,
   UsersIcon,
   CalendarIcon,
-  BuildingOfficeIcon
+  BuildingOfficeIcon,
+  UserCircleIcon
 } from '@heroicons/react/24/outline';
 import { Project } from '@/types';
 import { transformProject, getIndustryTags } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
+interface BusinessProfile {
+  companyName?: string;
+  logoUrl?: string;
+  contactName?: string;
+}
+
 export default function BusinessDashboardPage() {
+  const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [profile, setProfile] = useState<BusinessProfile | null>(null);
 
   useEffect(() => {
-    fetchProjects();
+    // Add a small delay to ensure cookies are properly set
+    const timer = setTimeout(() => {
+      setAuthChecked(true);
+      fetchProjects();
+      fetchProfile();
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, []);
+
+  // Fetch profile on page focus to get latest updates
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchProfile();
+    };
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'profileUpdated') {
+        fetchProfile();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
+  const fetchProfile = async () => {
+    try {
+      const response = await fetch('/api/business/profile', {
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Fetched profile:', data.data);
+        setProfile(data.data);
+      } else if (response.status === 404) {
+        // Profile doesn't exist yet
+        console.log('Profile not found, user needs to create one');
+        setProfile({
+          companyName: '',
+          contactName: '',
+          logoUrl: ''
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    }
+  };
 
   const fetchProjects = async () => {
     try {
-      const response = await fetch('/api/business/projects');
+      const response = await fetch('/api/business/projects', {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.status === 401) {
+        // If unauthorized, redirect to login
+        router.push('/business/login');
+        return;
+      }
+
       if (response.ok) {
         const data = await response.json();
         // Transform the projects to ensure consistent camelCase naming
@@ -72,6 +146,8 @@ export default function BusinessDashboardPage() {
     const baseClasses = "px-2 py-1 text-xs font-medium rounded-full";
     if (status === 'open') {
       return `${baseClasses} bg-green-100 text-green-800`;
+    } else if (status === 'closed') {
+      return `${baseClasses} bg-red-100 text-red-800`;
     }
     return `${baseClasses} bg-gray-100 text-gray-800`;
   };
@@ -86,11 +162,11 @@ export default function BusinessDashboardPage() {
     ).length || 0;
   };
 
-  if (loading) {
+  if (loading || !authChecked) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#789b4a] mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading your projects...</p>
         </div>
       </div>
@@ -104,11 +180,21 @@ export default function BusinessDashboardPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center space-x-4">
-              <div className="w-10 h-10 bg-[#789b4a] rounded-full flex items-center justify-center">
-                <BuildingOfficeIcon className="w-6 h-6 text-white" />
+              <div className={`w-14 h-14 rounded-full flex items-center justify-center overflow-hidden ${!profile?.logoUrl ? 'bg-[#789b4a]' : ''}`}>
+                {profile?.logoUrl ? (
+                  <img
+                    src={profile.logoUrl}
+                    alt={profile.companyName || 'Company'}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <BuildingOfficeIcon className="w-8 h-8 text-white" />
+                )}
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Business Dashboard</h1>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  {profile?.companyName || 'Business Dashboard'}
+                </h1>
                 <p className="text-gray-600">Manage your project opportunities</p>
               </div>
             </div>
@@ -153,7 +239,7 @@ export default function BusinessDashboardPage() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Active Projects</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {projects.filter(p => p.status === 'open').length}
+                    {projects.filter(p => !p.status || p.status === 'open').length}
                   </p>
                 </div>
               </div>
@@ -242,7 +328,10 @@ export default function BusinessDashboardPage() {
                           )}
                         </div>
                         <div className={getStatusBadge(project.status)}>
-                          {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
+                          {project.status === 'closed'
+                            ? 'Student Selected'
+                            : project.status.charAt(0).toUpperCase() + project.status.slice(1)
+                          }
                         </div>
                       </div>
                     </div>
@@ -281,12 +370,12 @@ export default function BusinessDashboardPage() {
                         </Button>
                       </Link>
                       <Link href={`/business/projects/${project.id}/edit`}>
-                        <Button variant="ghost" size="sm">
+                        <Button variant="outline" size="sm" className="h-full">
                           <PencilIcon className="w-4 h-4" />
                         </Button>
                       </Link>
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
                         onClick={() => setDeleteId(project.id)}
                         className="text-red-600 hover:text-red-700 hover:bg-red-50"

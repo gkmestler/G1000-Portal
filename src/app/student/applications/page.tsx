@@ -33,7 +33,13 @@ export default function ApplicationsPage() {
       const response = await fetch('/api/student/applications');
       if (response.ok) {
         const data = await response.json();
-        setApplications(data.data);
+        // Sort applications: accepted first, then by date
+        const sortedApplications = data.data.sort((a: Application, b: Application) => {
+          if (a.status === 'accepted' && b.status !== 'accepted') return -1;
+          if (a.status !== 'accepted' && b.status === 'accepted') return 1;
+          return new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime();
+        });
+        setApplications(sortedApplications);
       } else {
         toast.error('Failed to load applications');
       }
@@ -49,11 +55,11 @@ export default function ApplicationsPage() {
     const styles = {
       submitted: 'bg-blue-100 text-blue-800',
       underReview: 'bg-yellow-100 text-yellow-800',
-      interviewScheduled: 'bg-purple-100 text-purple-800',
+      interviewScheduled: 'bg-green-100 text-green-800',
       accepted: 'bg-green-100 text-green-800',
       rejected: 'bg-red-100 text-red-800',
     };
-    
+
     const labels = {
       submitted: 'Submitted',
       underReview: 'Under Review',
@@ -139,21 +145,92 @@ export default function ApplicationsPage() {
           </Card>
         ) : (
           <div className="space-y-6">
-            {applications.map((application) => (
-              <Card key={application.id} hover>
+            {/* Accepted Applications Section Header */}
+            {applications.some(app => app.status === 'accepted') && (
+              <div className="mb-6">
+                <div className="flex items-center mb-4">
+                  <div className="flex-1 h-px bg-gradient-to-r from-transparent via-green-300 to-transparent"></div>
+                  <div className="mx-4 flex items-center space-x-2 px-4 py-2 bg-green-50 rounded-full border border-green-300">
+                    <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-sm font-bold text-green-800">ACCEPTED APPLICATIONS</span>
+                  </div>
+                  <div className="flex-1 h-px bg-gradient-to-r from-transparent via-green-300 to-transparent"></div>
+                </div>
+              </div>
+            )}
+
+            {applications.map((application, index) => {
+              const prevApplication = index > 0 ? applications[index - 1] : null;
+              const showDivider = prevApplication?.status === 'accepted' && application.status !== 'accepted';
+
+              return (
+                <div key={application.id}>
+                  {/* Other Applications Divider */}
+                  {showDivider && (
+                    <div className="mb-6 mt-8">
+                      <div className="flex items-center">
+                        <div className="flex-1 h-px bg-gray-300"></div>
+                        <span className="mx-4 text-sm font-medium text-gray-500 px-3 py-1 bg-gray-50 rounded-full">
+                          Other Applications
+                        </span>
+                        <div className="flex-1 h-px bg-gray-300"></div>
+                      </div>
+                    </div>
+                  )}
+
+                  <Card
+                    hover
+                    className={application.status === 'accepted' ? 'relative overflow-hidden border-2 border-green-500 bg-white shadow-lg' : ''}
+              >
+                {/* Accepted Badge */}
+                {application.status === 'accepted' && (
+                  <>
+                    {/* Top corner ribbon */}
+                    <div className="absolute top-0 right-0 bg-gradient-to-br from-green-500 to-emerald-600 text-white px-8 py-1 rounded-bl-lg shadow-md">
+                      <div className="flex items-center space-x-1">
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                        <span className="text-xs font-bold">ACCEPTED!</span>
+                      </div>
+                    </div>
+                  </>
+                )}
                 <CardContent className="p-6">
                   <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between">
                     {/* Left Section */}
                     <div className="flex-1 mb-4 lg:mb-0">
                       <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                            {application.project?.title}
-                          </h3>
-                          <div className="flex items-center space-x-4 text-sm text-gray-600">
-                            <span>Business Owner ID: {application.project?.ownerId}</span>
-                            <span>•</span>
-                            <span>Applied {new Date(application.submittedAt).toLocaleDateString()}</span>
+                        <div className="flex items-start space-x-4">
+                          {/* Business Logo */}
+                          {(application.project as any)?.companyLogoUrl ? (
+                            <div className="flex-shrink-0">
+                              <img
+                                src={(application.project as any).companyLogoUrl}
+                                alt={(application.project as any)?.companyName || 'Company'}
+                                className="w-12 h-12 rounded-lg object-cover border border-gray-200"
+                              />
+                            </div>
+                          ) : (
+                            <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center">
+                              <span className="text-lg font-semibold text-gray-400">
+                                {((application.project as any)?.companyName || 'C').charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Project Info */}
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                              {application.project?.title}
+                            </h3>
+                            <div className="flex items-center space-x-4 text-sm text-gray-600">
+                              <span>{(application.project as any)?.companyName || 'Unknown Company'}</span>
+                              <span>•</span>
+                              <span>Applied {new Date(application.submittedAt).toLocaleDateString()}</span>
+                            </div>
                           </div>
                         </div>
                         <div className="ml-4">
@@ -161,18 +238,50 @@ export default function ApplicationsPage() {
                         </div>
                       </div>
 
+                      {/* Accepted Celebration Message */}
+                      {application.status === 'accepted' && (
+                        <div className="mb-4 p-4 bg-green-50 border border-green-300 rounded-lg">
+                          <div className="flex items-center mb-2">
+                            <svg className="w-5 h-5 text-green-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                            <span className="text-sm font-bold text-green-800">Congratulations!</span>
+                          </div>
+                          <p className="text-sm text-green-700">
+                            Your application has been accepted! The business will contact you soon with next steps.
+                          </p>
+                        </div>
+                      )}
+
                       {/* Interview Details */}
                       {application.status === 'interviewScheduled' && application.meetingDateTime && (
-                        <div className="mb-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
                           <div className="flex items-center mb-2">
-                            <CalendarIcon className="w-5 h-5 text-purple-600 mr-2" />
-                            <span className="text-sm font-medium text-purple-800">Interview Scheduled</span>
+                            <CalendarIcon className="w-5 h-5 text-green-600 mr-2" />
+                            <span className="text-sm font-medium text-green-800">Interview Scheduled</span>
                           </div>
                           <div className="flex items-center mb-2">
-                            <ClockIcon className="w-4 h-4 text-purple-600 mr-2" />
-                            <span className="text-sm text-purple-700">
+                            <ClockIcon className="w-4 h-4 text-green-600 mr-2" />
+                            <span className="text-sm text-green-700">
                               {formatMeetingDateTime(application.meetingDateTime)}
                             </span>
+                          </div>
+                          <div className="flex items-center">
+                            <LinkIcon className="w-4 h-4 text-green-600 mr-2" />
+                            {application.meetingLink ? (
+                              <a
+                                href={application.meetingLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm text-green-700 hover:text-green-900 underline"
+                              >
+                                Join Meeting
+                              </a>
+                            ) : (
+                              <span className="text-sm text-gray-500 italic">
+                                Meeting link not available yet
+                              </span>
+                            )}
                           </div>
                         </div>
                       )}
@@ -184,12 +293,16 @@ export default function ApplicationsPage() {
                             {tag}
                           </span>
                         ))}
-                        <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                          {application.project?.duration}
-                        </span>
-                        <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">
-                          {application.project?.compensationType}: {application.project?.compensationValue}
-                        </span>
+                        {application.project?.duration && (
+                          <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                            {application.project.duration}
+                          </span>
+                        )}
+                        {application.project?.compensationType && application.project?.compensationValue && (
+                          <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">
+                            {application.project.compensationType}: {application.project.compensationValue}
+                          </span>
+                        )}
                       </div>
 
                       {/* Cover Note */}
@@ -210,28 +323,14 @@ export default function ApplicationsPage() {
                       </Link>
 
                       {application.status === 'interviewScheduled' && application.meetingDateTime && (
-                        <Button 
-                          variant="accent" 
+                        <Button
+                          variant="accent"
                           className="w-full"
                           onClick={() => setInterviewModal({ isOpen: true, application })}
                         >
                           <CalendarIcon className="w-4 h-4 mr-2" />
                           Interview Details
                         </Button>
-                      )}
-
-                      {application.proofOfWorkUrl && (
-                        <a 
-                          href={application.proofOfWorkUrl} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="w-full"
-                        >
-                          <Button variant="ghost" className="w-full">
-                            <ArrowTopRightOnSquareIcon className="w-4 h-4 mr-2" />
-                            View Portfolio
-                          </Button>
-                        </a>
                       )}
 
                       {(application.status === 'submitted' || application.status === 'underReview') && (
@@ -247,7 +346,9 @@ export default function ApplicationsPage() {
                   </div>
                 </CardContent>
               </Card>
-            ))}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -261,10 +362,31 @@ export default function ApplicationsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <h4 className="font-medium text-gray-900 mb-2">
-                  {interviewModal.application.project?.title}
-                </h4>
-                <p className="text-sm text-gray-600 mb-4">
+                <div className="flex items-start space-x-3 mb-4">
+                  {/* Business Logo in Modal */}
+                  {(interviewModal.application.project as any)?.companyLogoUrl ? (
+                    <img
+                      src={(interviewModal.application.project as any).companyLogoUrl}
+                      alt={(interviewModal.application.project as any)?.companyName || 'Company'}
+                      className="w-10 h-10 rounded-lg object-cover border border-gray-200"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center">
+                      <span className="text-sm font-semibold text-gray-400">
+                        {((interviewModal.application.project as any)?.companyName || 'C').charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                  <div>
+                    <h4 className="font-medium text-gray-900">
+                      {interviewModal.application.project?.title}
+                    </h4>
+                    <p className="text-sm text-gray-600">
+                      {(interviewModal.application.project as any)?.companyName || 'Unknown Company'}
+                    </p>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-600">
                   Interview scheduled for your application
                 </p>
               </div>

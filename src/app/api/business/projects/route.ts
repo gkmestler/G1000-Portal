@@ -114,24 +114,32 @@ export async function POST(request: NextRequest) {
       title,
       description,
       type,
-      typeExplanation,
+      isAiConsultation,
+      currentSoftwareTools,
+      painPoints,
       industryTags,
-      duration,
-      deliverables,
+      estimatedDuration,
+      estimatedHoursPerWeek,
       compensationType,
       compensationValue,
+      budget,
+      deliverables,
+      location,
+      onsiteLocation,
       applyWindowStart,
       applyWindowEnd,
       requiredSkills
     } = body;
 
     // Validation
-    if (!title || !description || !type || !duration || !compensationType || !compensationValue) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
-    }
-
-    if (type === 'other' && !typeExplanation?.trim()) {
-      return NextResponse.json({ error: 'Type explanation is required when type is "other"' }, { status: 400 });
+    if (!isAiConsultation) {
+      if (!title || !description || !type) {
+        return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+      }
+    } else {
+      if (!currentSoftwareTools?.trim()) {
+        return NextResponse.json({ error: 'Current software and tools description is required for AI consultation' }, { status: 400 });
+      }
     }
 
     if (!industryTags || industryTags.length === 0) {
@@ -142,19 +150,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Application window start must be before end date' }, { status: 400 });
     }
 
+    // If location is onsite, validate location is provided
+    if (location === 'onsite' && !onsiteLocation?.trim()) {
+      return NextResponse.json({ error: 'On-site location is required when location is onsite' }, { status: 400 });
+    }
+
     const { data: project, error } = await supabaseAdmin
       .from('projects')
       .insert({
         owner_id: user.id,
-        title,
-        description,
-        type,
-        type_explanation: typeExplanation,
+        title: isAiConsultation && !title ? 'AI Solutions Consultation' : title,
+        description: isAiConsultation && !description ?
+          'Looking for a student to consult on where AI solutions could provide the most value in our business operations.' :
+          description,
+        type: isAiConsultation ? 'consulting' : type,
+        is_ai_consultation: isAiConsultation || false,
+        current_software_tools: currentSoftwareTools,
+        pain_points: painPoints,
         industry_tags: industryTags || [],
-        duration,
+        estimated_duration: estimatedDuration,
+        estimated_hours_per_week: estimatedHoursPerWeek,
         deliverables: deliverables || [],
-        compensation_type: compensationType,
-        compensation_value: compensationValue,
+        compensation_type: compensationType || 'experience',
+        compensation_value: compensationValue || '',
+        budget: budget,
+        location: location || 'remote',
+        onsite_location: onsiteLocation,
         apply_window_start: applyWindowStart,
         apply_window_end: applyWindowEnd,
         required_skills: requiredSkills || [],

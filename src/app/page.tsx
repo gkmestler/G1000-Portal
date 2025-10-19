@@ -48,7 +48,7 @@ export default function HomePage() {
             </div>
             
             <div className="flex items-center space-x-3">
-              <Link href="/student-coming-soon">
+              <Link href="/login">
                 <Button 
                   variant="ghost"
                   className="hidden sm:inline-flex"
@@ -84,8 +84,8 @@ export default function HomePage() {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/student-coming-soon">
-              <Button 
+            <Link href="/login">
+              <Button
                 size="xl"
                 variant="outline"
                 icon={<AcademicCapIcon className="w-5 h-5" />}
