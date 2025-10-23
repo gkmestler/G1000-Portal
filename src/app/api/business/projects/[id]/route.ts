@@ -9,12 +9,12 @@ export async function GET(
 ) {
   try {
     let user;
-    
+
     // In dev mode, create mock owner user for business context
     if (process.env.DEV_MODE === 'true') {
       const referer = request.headers.get('referer') || '';
       const pathname = new URL(request.url).pathname;
-      
+
       // For business API routes, always use owner context in dev mode
       if (pathname.startsWith('/api/business') || referer.includes('/business')) {
         user = {
@@ -27,29 +27,161 @@ export async function GET(
         };
       }
     }
-    
+
     // Normal auth flow for production
     if (!user) {
       user = await getUserFromRequest(request);
     }
-    
+
     if (!user || user.role !== 'owner') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data: project, error } = await supabaseAdmin
-      .from('projects')
-      .select('*')
-      .eq('id', params.id)
-      .eq('owner_id', user.id)
+    const { id: applicationId } = params;
+
+    // Get project details with all related data
+    const { data: application, error: appError } = await supabaseAdmin
+      .from('applications')
+      .select(`
+        *,
+        projects!inner(
+          id,
+          title,
+          description,
+          owner_id,
+          industry_tags,
+          estimated_duration,
+          compensation_type,
+          compensation_value
+        ),
+        users(
+          id,
+          name,
+          email
+        ),
+        project_overviews(
+          id,
+          scope,
+          deliverables,
+          start_date,
+          target_end_date,
+          meeting_link,
+          owner_contact_name,
+          owner_contact_email,
+          useful_links,
+          updated_at
+        ),
+        project_reviews(
+          id,
+          reliability_rating,
+          communication_rating,
+          initiative_rating,
+          quality_rating,
+          impact_rating,
+          review_note,
+          deliverables_completed,
+          created_at
+        ),
+        project_reflections(
+          id,
+          reflection_points,
+          reflection_links,
+          created_at
+        )
+      `)
+      .eq('id', applicationId)
+      .eq('projects.owner_id', user.id)
+      .eq('status', 'accepted')
       .single();
 
-    if (error) {
-      console.error('Error fetching project:', error);
+    if (appError || !application) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ data: project });
+    // Get all updates with comments
+    const { data: updates } = await supabaseAdmin
+      .from('project_updates')
+      .select(`
+        *,
+        project_comments(
+          id,
+          user_id,
+          comment,
+          created_at,
+          users(name, role)
+        )
+      `)
+      .eq('application_id', applicationId)
+      .order('created_at', { ascending: false });
+
+    const formattedProject = {
+      id: application.id,
+      title: application.projects?.title || 'Untitled Project',
+      description: application.projects?.description,
+      studentName: application.users?.name || 'Unknown Student',
+      studentEmail: application.users?.email || '',
+      studentId: application.student_id,
+      status: application.project_reviews?.length > 0 ? 'completed' : 'active',
+
+      // Overview section
+      overview: {
+        id: application.project_overviews?.[0]?.id,
+        scope: application.project_overviews?.[0]?.scope || '',
+        deliverables: application.project_overviews?.[0]?.deliverables || [],
+        startDate: application.project_overviews?.[0]?.start_date,
+        targetEndDate: application.project_overviews?.[0]?.target_end_date,
+        meetingLink: application.project_overviews?.[0]?.meeting_link || '',
+        ownerContactName: application.project_overviews?.[0]?.owner_contact_name || '',
+        ownerContactEmail: application.project_overviews?.[0]?.owner_contact_email || '',
+        usefulLinks: application.project_overviews?.[0]?.useful_links || [],
+        updatedAt: application.project_overviews?.[0]?.updated_at
+      },
+
+      // Updates section
+      updates: updates?.map(update => ({
+        id: update.id,
+        workedOn: update.worked_on,
+        progressPercentage: update.progress_percentage,
+        blockers: update.blockers,
+        nextSteps: update.next_steps || [],
+        links: update.links || [],
+        createdAt: update.created_at,
+        comments: update.project_comments?.map((comment: any) => ({
+          id: comment.id,
+          userId: comment.user_id,
+          userName: comment.users?.name,
+          userRole: comment.users?.role,
+          comment: comment.comment,
+          createdAt: comment.created_at
+        })) || []
+      })) || [],
+
+      // Review section (if completed)
+      review: application.project_reviews?.[0] ? {
+        id: application.project_reviews[0].id,
+        reliabilityRating: application.project_reviews[0].reliability_rating,
+        communicationRating: application.project_reviews[0].communication_rating,
+        initiativeRating: application.project_reviews[0].initiative_rating,
+        qualityRating: application.project_reviews[0].quality_rating,
+        impactRating: application.project_reviews[0].impact_rating,
+        reviewNote: application.project_reviews[0].review_note,
+        deliverablesCompleted: application.project_reviews[0].deliverables_completed,
+        createdAt: application.project_reviews[0].created_at
+      } : null,
+
+      // Reflection section (if exists)
+      reflection: application.project_reflections?.[0] ? {
+        id: application.project_reflections[0].id,
+        reflectionPoints: application.project_reflections[0].reflection_points || [],
+        reflectionLinks: application.project_reflections[0].reflection_links || [],
+        createdAt: application.project_reflections[0].created_at
+      } : null,
+
+      ownerId: user.id,
+      projectId: application.project_id
+    };
+
+    return NextResponse.json({ data: formattedProject });
   } catch (error) {
     console.error('Error in GET /api/business/projects/[id]:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

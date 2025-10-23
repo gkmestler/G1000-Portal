@@ -16,6 +16,7 @@ const navigation = [
   { name: 'Dashboard', href: '/student/dashboard', icon: '🏠' },
   { name: 'Opportunities', href: '/student/opportunities', icon: '🔍' },
   { name: 'My Applications', href: '/student/applications', icon: '📋' },
+  { name: 'Projects', href: '/student/projects', icon: '💼' },
   { name: 'Interviews', href: '/student/interviews', icon: '📅' },
   { name: 'Profile', href: '/student/profile', icon: '👤' },
 ];

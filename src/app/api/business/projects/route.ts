@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     if (process.env.DEV_MODE === 'true') {
       const referer = request.headers.get('referer') || '';
       const pathname = new URL(request.url).pathname;
-      
+
       // For business API routes, always use owner context in dev mode
       if (pathname.startsWith('/api/business') || referer.includes('/business')) {
         const mockOwnerUser = {
@@ -20,58 +20,174 @@ export async function GET(request: NextRequest) {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         };
-        
-        const { data: projects, error } = await supabaseAdmin
-          .from('projects')
+
+        // Get accepted applications for business owner's projects
+        const { data: applications, error } = await supabaseAdmin
+          .from('applications')
           .select(`
             *,
-            applications(
+            projects!inner(
               id,
-              status,
-              submitted_at,
-              invited_at,
-              rejected_at
+              title,
+              description,
+              owner_id,
+              estimated_duration,
+              compensation_type,
+              compensation_value
+            ),
+            users(
+              id,
+              name,
+              email
+            ),
+            project_overviews(
+              id,
+              start_date,
+              target_end_date
+            ),
+            project_reviews(
+              id,
+              created_at
             )
           `)
-          .eq('owner_id', mockOwnerUser.id)
-          .order('created_at', { ascending: false });
+          .eq('projects.owner_id', mockOwnerUser.id)
+          .eq('status', 'accepted')
+          .order('submitted_at', { ascending: false });
 
         if (error) {
           console.error('Error fetching projects:', error);
           return NextResponse.json({ error: 'Failed to fetch projects' }, { status: 500 });
         }
 
-        return NextResponse.json({ data: projects });
+        // Get latest updates for progress tracking
+        let updatesByProject: Record<string, any> = {};
+        if (applications && applications.length > 0) {
+          const applicationIds = applications.map(a => a.id);
+          const { data: latestUpdates } = await supabaseAdmin
+            .from('project_updates')
+            .select('application_id, created_at, progress_percentage')
+            .in('application_id', applicationIds)
+            .order('created_at', { ascending: false });
+
+          if (latestUpdates) {
+            updatesByProject = latestUpdates.reduce((acc, update) => {
+              if (!acc[update.application_id] || update.created_at > acc[update.application_id].created_at) {
+                acc[update.application_id] = {
+                  created_at: update.created_at,
+                  progress_percentage: update.progress_percentage
+                };
+              }
+              return acc;
+            }, {} as Record<string, any>);
+          }
+        }
+
+        // Format the response
+        const formattedProjects = applications?.map(app => ({
+          id: app.id,
+          projectId: app.project_id,
+          title: app.projects?.title || 'Untitled Project',
+          studentName: app.users?.name || 'Unknown Student',
+          studentEmail: app.users?.email || '',
+          status: app.project_reviews?.length > 0 ? 'completed' : 'active',
+          projectStatus: app.project_status || 'active',
+          lastUpdate: updatesByProject[app.id]?.created_at || null,
+          progressPercentage: updatesByProject[app.id]?.progress_percentage,
+          startDate: app.project_overviews?.[0]?.start_date || null,
+          targetEndDate: app.project_overviews?.[0]?.target_end_date || null,
+          hasOverview: app.project_overviews?.length > 0,
+          submittedAt: app.submitted_at
+        })) || [];
+
+        return NextResponse.json({ data: formattedProjects });
       }
     }
-    
+
     // Normal auth flow for production
     const user = await getUserFromRequest(request);
     if (!user || user.role !== 'owner') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data: projects, error } = await supabaseAdmin
-      .from('projects')
+    // Get accepted applications for business owner's projects
+    const { data: applications, error } = await supabaseAdmin
+      .from('applications')
       .select(`
         *,
-        applications(
+        projects!inner(
           id,
-          status,
-          submitted_at,
-          invited_at,
-          rejected_at
+          title,
+          description,
+          owner_id,
+          estimated_duration,
+          compensation_type,
+          compensation_value
+        ),
+        users(
+          id,
+          name,
+          email
+        ),
+        project_overviews(
+          id,
+          start_date,
+          target_end_date
+        ),
+        project_reviews(
+          id,
+          created_at
         )
       `)
-      .eq('owner_id', user.id)
-      .order('created_at', { ascending: false });
+      .eq('projects.owner_id', user.id)
+      .eq('status', 'accepted')
+      .order('submitted_at', { ascending: false });
 
     if (error) {
       console.error('Error fetching projects:', error);
       return NextResponse.json({ error: 'Failed to fetch projects' }, { status: 500 });
     }
 
-    return NextResponse.json({ data: projects });
+    // Get latest updates for progress tracking
+    let updatesByProject: Record<string, any> = {};
+    if (applications && applications.length > 0) {
+      const applicationIds = applications.map(a => a.id);
+      const { data: latestUpdates } = await supabaseAdmin
+        .from('project_updates')
+        .select('application_id, created_at, progress_percentage')
+        .in('application_id', applicationIds)
+        .order('created_at', { ascending: false });
+
+      if (latestUpdates) {
+        updatesByProject = latestUpdates.reduce((acc, update) => {
+          if (!acc[update.application_id] || update.created_at > acc[update.application_id].created_at) {
+            acc[update.application_id] = {
+              created_at: update.created_at,
+              progress_percentage: update.progress_percentage
+            };
+          }
+          return acc;
+        }, {} as Record<string, any>);
+      }
+    }
+
+    // Format the response
+    const formattedProjects = applications?.map(app => ({
+      id: app.id,
+      projectId: app.project_id,
+      title: app.projects?.title || 'Untitled Project',
+      studentName: app.users?.name || 'Unknown Student',
+      studentEmail: app.users?.email || '',
+      status: app.project_reviews?.length > 0 ? 'completed' : 'active',
+      projectStatus: app.project_status || 'active',
+      lastUpdate: updatesByProject[app.id]?.created_at || null,
+      progressPercentage: updatesByProject[app.id]?.progress_percentage,
+      startDate: app.project_overviews?.[0]?.start_date || null,
+      targetEndDate: app.project_overviews?.[0]?.target_end_date || null,
+      hasOverview: app.project_overviews?.length > 0,
+      submittedAt: app.submitted_at
+    })) || [];
+
+    return NextResponse.json({ data: formattedProjects });
   } catch (error) {
     console.error('Error in GET /api/business/projects:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

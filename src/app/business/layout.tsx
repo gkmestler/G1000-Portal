@@ -4,11 +4,12 @@ import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
-import { 
+import {
   BuildingOfficeIcon,
   HomeIcon,
   PlusIcon,
-  ArrowRightOnRectangleIcon
+  ArrowRightOnRectangleIcon,
+  FolderIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import GeneratorLogo from '@/components/GeneratorLogo';
@@ -216,6 +217,11 @@ export default function BusinessLayout({
       name: 'Dashboard',
       href: '/business/dashboard',
       icon: HomeIcon,
+    },
+    {
+      name: 'Projects',
+      href: '/business/projects',
+      icon: FolderIcon,
     },
     {
       name: 'New Project',
