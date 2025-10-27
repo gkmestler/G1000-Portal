@@ -83,6 +83,23 @@ export default function NewProjectPage() {
         description: prev.description || 'Looking for a student to consult on where AI solutions could provide the most value in our business operations.',
         type: 'consulting'
       }));
+    } else {
+      // Clear auto-filled values when unchecking AI consultation
+      setFormData(prev => {
+        const updates: any = { ...prev };
+        // Only clear if they match the default AI consultation values
+        if (prev.title === 'AI Solutions Consultation') {
+          updates.title = '';
+        }
+        if (prev.description === 'Looking for a student to consult on where AI solutions could provide the most value in our business operations.') {
+          updates.description = '';
+        }
+        // Reset type if it was set to consulting by the AI consultation
+        if (prev.type === 'consulting') {
+          updates.type = 'project-based';
+        }
+        return updates;
+      });
     }
   }, [formData.isAiConsultation]);
 
@@ -163,17 +180,21 @@ export default function NewProjectPage() {
     try {
       const submissionData = {
         ...formData,
-        // Clean up optional fields that weren't filled
-        estimatedDuration: showOptionalFields.duration ? formData.estimatedDuration : undefined,
-        estimatedHoursPerWeek: showOptionalFields.hours ? formData.estimatedHoursPerWeek : undefined,
-        compensationType: showOptionalFields.compensation ? formData.compensationType : undefined,
-        compensationValue: showOptionalFields.compensation ? formData.compensationValue : undefined,
-        budget: showOptionalFields.budget ? formData.budget : undefined,
-        requiredSkills: showOptionalFields.skills ? formData.requiredSkills : [],
-        deliverables: showOptionalFields.deliverables ? formData.deliverables.filter(d => d.trim()) : [],
+        // Send actual form data - use undefined for empty values to clear them
+        // Only send values that are actually shown in the UI
+        estimatedDuration: showOptionalFields.duration && formData.estimatedDuration ? formData.estimatedDuration : undefined,
+        estimatedHoursPerWeek: showOptionalFields.hours && formData.estimatedHoursPerWeek ? formData.estimatedHoursPerWeek : undefined,
+        // Always send compensation type - 'experience' when unchecked, selected value when checked
+        compensationType: showOptionalFields.compensation ? formData.compensationType : 'experience',
+        compensationValue: showOptionalFields.compensation ? formData.compensationValue : '',
+        budget: showOptionalFields.budget && formData.budget ? formData.budget : undefined,
+        requiredSkills: showOptionalFields.skills && formData.requiredSkills?.length ? formData.requiredSkills : [],
+        deliverables: showOptionalFields.deliverables && formData.deliverables?.length ? formData.deliverables.filter(d => d && d.trim()) : [],
         location: showOptionalFields.location ? formData.location : 'remote',
         onsiteLocation: showOptionalFields.location && formData.location === 'onsite' ? formData.onsiteLocation : undefined
       };
+
+      console.log('Creating new opportunity with data:', submissionData);
 
       const response = await fetch('/api/business/projects', {
         method: 'POST',
@@ -181,11 +202,18 @@ export default function NewProjectPage() {
         body: JSON.stringify(submissionData),
       });
 
+      const data = await response.json();
+
       if (response.ok) {
+        console.log('Opportunity created successfully:', data);
         toast.success('Opportunity created successfully!');
+        // Trigger storage event to update dashboard
+        window.localStorage.setItem('projectsUpdated', Date.now().toString());
+        // Force refresh dashboard on navigation
         router.push('/business/dashboard');
+        router.refresh();
       } else {
-        const data = await response.json();
+        console.error('Failed to create opportunity:', data);
         toast.error(data.error || 'Failed to create opportunity');
       }
     } catch (error) {
@@ -259,10 +287,10 @@ export default function NewProjectPage() {
 
   const getCompensationLabel = (type: string) => {
     switch (type) {
-      case 'paid-hourly': return 'Paid (Hourly)';
-      case 'paid-stipend': return 'Paid (Stipend)';
-      case 'paid-fixed': return 'Paid (Fixed Project Fee)';
-      case 'paid-salary': return 'Paid (Salary)';
+      case 'paid-hourly': return 'Hourly';
+      case 'paid-stipend': return 'Stipend';
+      case 'paid-fixed': return 'Fixed Project Fee';
+      case 'paid-salary': return 'Salary';
       case 'equity': return 'Equity / Ownership';
       case 'experience': return 'Experience / Portfolio only';
       case 'other': return 'Other';
@@ -551,10 +579,53 @@ export default function NewProjectPage() {
                   <button
                     key={key}
                     type="button"
-                    onClick={() => setShowOptionalFields(prev => ({ ...prev, [key]: !prev[key as keyof typeof prev] }))}
+                    onClick={() => {
+                      const isCurrentlyShown = showOptionalFields[key as keyof typeof showOptionalFields];
+                      setShowOptionalFields(prev => ({ ...prev, [key]: !prev[key as keyof typeof prev] }));
+
+                      // Clear the form data when unchecking
+                      if (isCurrentlyShown) {
+                        setFormData(prev => {
+                          const updates = { ...prev };
+                          switch (key) {
+                            case 'duration':
+                              updates.estimatedDuration = '';
+                              break;
+                            case 'hours':
+                              updates.estimatedHoursPerWeek = '';
+                              break;
+                            case 'compensation':
+                              updates.compensationType = 'experience';
+                              updates.compensationValue = '';
+                              break;
+                            case 'budget':
+                              updates.budget = '';
+                              break;
+                            case 'skills':
+                              updates.requiredSkills = [];
+                              break;
+                            case 'deliverables':
+                              updates.deliverables = [''];
+                              break;
+                            case 'location':
+                              updates.location = 'remote';
+                              updates.onsiteLocation = '';
+                              break;
+                          }
+                          return updates;
+                        });
+                      } else if (!isCurrentlyShown && key === 'compensation') {
+                        // When showing compensation, default to fixed project fee
+                        setFormData(prev => ({
+                          ...prev,
+                          compensationType: 'paid-fixed',
+                          compensationValue: prev.compensationValue || ''
+                        }));
+                      }
+                    }}
                     className={`px-4 py-2 rounded-lg border-2 transition-all text-sm ${
                       showOptionalFields[key as keyof typeof showOptionalFields]
-                        ? 'border-amber-500 bg-amber-50 text-amber-700 font-medium'
+                        ? 'border-generator-green bg-generator-green/10 text-generator-green font-medium'
                         : 'border-gray-200 hover:border-gray-300 text-gray-600'
                     }`}
                   >
@@ -571,7 +642,7 @@ export default function NewProjectPage() {
                       Estimated Duration
                     </label>
                     <select
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-generator-green focus:border-generator-green"
                       value={formData.estimatedDuration || ''}
                       onChange={(e) => {
                         setFormData({ ...formData, estimatedDuration: e.target.value });
@@ -586,7 +657,7 @@ export default function NewProjectPage() {
                     {formData.estimatedDuration === 'Custom' && (
                       <input
                         type="text"
-                        className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                        className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-generator-green focus:border-generator-green"
                         placeholder="Enter custom duration..."
                         value={customDuration}
                         onChange={(e) => setCustomDuration(e.target.value)}
@@ -602,7 +673,7 @@ export default function NewProjectPage() {
                       Estimated Hours per Week
                     </label>
                     <select
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-generator-green focus:border-generator-green"
                       value={formData.estimatedHoursPerWeek || ''}
                       onChange={(e) => setFormData({ ...formData, estimatedHoursPerWeek: e.target.value })}
                     >
@@ -622,7 +693,7 @@ export default function NewProjectPage() {
                         Compensation Type
                       </label>
                       <select
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-generator-green focus:border-generator-green"
                         value={formData.compensationType || ''}
                         onChange={(e) => setFormData({ ...formData, compensationType: e.target.value as any })}
                       >
@@ -640,7 +711,7 @@ export default function NewProjectPage() {
                         </label>
                         <input
                           type="text"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-generator-green focus:border-generator-green"
                           placeholder={getCompensationPlaceholder(formData.compensationType)}
                           value={formData.compensationValue || ''}
                           onChange={(e) => setFormData({ ...formData, compensationValue: e.target.value })}
@@ -658,7 +729,7 @@ export default function NewProjectPage() {
                     </label>
                     <input
                       type="text"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-generator-green focus:border-generator-green"
                       placeholder="e.g., $5k-$10k, or 'Flexible'"
                       value={formData.budget || ''}
                       onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
@@ -750,12 +821,12 @@ export default function NewProjectPage() {
                             onClick={() => setFormData({ ...formData, location: loc as any })}
                             className={`px-4 py-2 rounded-lg border-2 transition-all capitalize ${
                               formData.location === loc
-                                ? 'border-amber-500 bg-amber-50 text-amber-700 font-medium'
+                                ? 'border-generator-green bg-generator-green/10 text-generator-green font-medium'
                                 : 'border-gray-200 hover:border-gray-300 text-gray-600'
                             }`}
                           >
                             <MapPinIcon className={`w-5 h-5 mx-auto mb-1 ${
-                              formData.location === loc ? 'text-amber-600' : 'text-gray-400'
+                              formData.location === loc ? 'text-generator-green' : 'text-gray-400'
                             }`} />
                             {loc}
                           </button>
@@ -770,7 +841,7 @@ export default function NewProjectPage() {
                         </label>
                         <input
                           type="text"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-generator-green focus:border-generator-green"
                           placeholder="e.g., San Francisco, CA"
                           value={formData.onsiteLocation || ''}
                           onChange={(e) => setFormData({ ...formData, onsiteLocation: e.target.value })}
@@ -798,7 +869,7 @@ export default function NewProjectPage() {
                           <span className="text-gray-400 mt-2">{index + 1}.</span>
                           <input
                             type="text"
-                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-generator-green focus:border-generator-green"
                             placeholder="Describe expected outcome..."
                             value={deliverable}
                             onChange={(e) => updateDeliverable(index, e.target.value)}

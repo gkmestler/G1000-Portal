@@ -46,24 +46,53 @@ export default function BusinessDashboardPage() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Fetch profile on page focus to get latest updates
+  // Refresh projects when returning from create/edit pages
+  useEffect(() => {
+    const handleRouteChange = () => {
+      if (authChecked) {
+        fetchProjects();
+      }
+    };
+
+    // Listen for navigation events
+    window.addEventListener('popstate', handleRouteChange);
+    return () => window.removeEventListener('popstate', handleRouteChange);
+  }, [authChecked]);
+
+  // Fetch profile and projects on page focus to get latest updates
   useEffect(() => {
     const handleFocus = () => {
+      console.log('Window focused, refreshing data...');
       fetchProfile();
+      fetchProjects(); // Also refresh projects when page receives focus
     };
 
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'profileUpdated') {
         fetchProfile();
       }
+      if (e.key === 'projectsUpdated') {
+        console.log('Projects updated trigger received');
+        fetchProjects();
+      }
+    };
+
+    // Also check on visibility change (more reliable than focus)
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log('Page visible, refreshing projects...');
+        fetchProjects();
+      }
     };
 
     window.addEventListener('focus', handleFocus);
     window.addEventListener('storage', handleStorageChange);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('storage', handleStorageChange);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
@@ -93,11 +122,15 @@ export default function BusinessDashboardPage() {
 
   const fetchProjects = async () => {
     try {
-      const response = await fetch('/api/business/projects', {
+      // Add timestamp to prevent caching
+      const response = await fetch(`/api/business/projects?t=${Date.now()}`, {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
         },
+        cache: 'no-store',
       });
 
       if (response.status === 401) {
@@ -108,6 +141,7 @@ export default function BusinessDashboardPage() {
 
       if (response.ok) {
         const data = await response.json();
+        console.log('Fetched projects:', data.data.length, 'projects');
         // Transform the projects to ensure consistent camelCase naming
         const transformedProjects = data.data.map(transformProject);
         setProjects(transformedProjects);
@@ -157,9 +191,47 @@ export default function BusinessDashboardPage() {
   };
 
   const getActiveApplicationsCount = (project: Project) => {
-    return project.applications?.filter(app => 
+    return project.applications?.filter(app =>
       ['submitted', 'underReview', 'interviewScheduled'].includes(app.status)
     ).length || 0;
+  };
+
+  const getCompensationDisplay = (type: string, value: string) => {
+    // Handle missing type
+    if (!type) {
+      return 'Not specified';
+    }
+
+    // Format type label
+    let typeLabel = '';
+    switch (type) {
+      case 'paid-hourly':
+        typeLabel = 'Hourly';
+        break;
+      case 'paid-stipend':
+        typeLabel = 'Stipend';
+        break;
+      case 'paid-fixed':
+        typeLabel = 'Fixed Fee';
+        break;
+      case 'paid-salary':
+        typeLabel = 'Salary';
+        break;
+      case 'equity':
+        typeLabel = 'Equity';
+        break;
+      case 'experience':
+        return 'Experience/Portfolio only';
+      default:
+        typeLabel = type;
+    }
+
+    // Handle value display for paid compensation types
+    if (!value || value === '' || value === 'Portfolio/Experience Building') {
+      return `${typeLabel}: Not specified`;
+    }
+
+    return `${typeLabel}: ${value}`;
   };
 
   if (loading || !authChecked) {
@@ -343,17 +415,21 @@ export default function BusinessDashboardPage() {
                     </p>
 
                     <div className="space-y-2 mb-4">
-                      <div className="flex items-center text-sm text-gray-500">
-                        <ClockIcon className="w-4 h-4 mr-2" />
-                        <span>{project.duration}</span>
-                      </div>
-                      <div className="flex items-center text-sm text-gray-500">
-                        <CurrencyDollarIcon className="w-4 h-4 mr-2" />
-                        <span>{project.compensationType}: {project.compensationValue}</span>
-                      </div>
+                      {project.estimatedDuration && (
+                        <div className="flex items-center text-sm text-gray-500">
+                          <ClockIcon className="w-4 h-4 mr-2" />
+                          <span>Duration: {project.estimatedDuration}</span>
+                        </div>
+                      )}
+                      {project.compensationType && project.compensationType !== 'experience' && (
+                        <div className="flex items-center text-sm text-gray-500">
+                          <CurrencyDollarIcon className="w-4 h-4 mr-2" />
+                          <span>{getCompensationDisplay(project.compensationType, project.compensationValue)}</span>
+                        </div>
+                      )}
                       <div className="flex items-center text-sm text-gray-500">
                         <UsersIcon className="w-4 h-4 mr-2" />
-                        <span>{getApplicationsCount(project)} applications</span>
+                        <span>{getApplicationsCount(project)} application{getApplicationsCount(project) !== 1 ? 's' : ''}</span>
                       </div>
                       <div className="flex items-center text-sm text-gray-500">
                         <CalendarIcon className="w-4 h-4 mr-2" />

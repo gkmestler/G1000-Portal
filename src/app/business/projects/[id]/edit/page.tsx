@@ -83,7 +83,7 @@ export default function EditProjectPage() {
 
   const fetchProject = async () => {
     try {
-      const response = await fetch(`/api/business/projects/${projectId}`);
+      const response = await fetch(`/api/business/projects/${projectId}?mode=edit`);
       if (response.ok) {
         const data = await response.json();
         const projectData = transformProject(data.data);
@@ -93,7 +93,8 @@ export default function EditProjectPage() {
         const hasSkills = projectData.requiredSkills && projectData.requiredSkills.length > 0;
         const hasDeliverables = projectData.deliverables && projectData.deliverables.length > 0;
         const hasDuration = !!((projectData as any).duration || (projectData as any).estimatedDuration);
-        const hasCompensation = !!projectData.compensationType;
+        // Show compensation only if it's not 'experience' (which is the default when unchecked)
+        const hasCompensation = projectData.compensationType && projectData.compensationType !== 'experience';
         const hasBudget = !!(projectData as any).budget;
         const hasHours = !!(projectData as any).estimatedHoursPerWeek;
         const hasLocation = (projectData as any).location !== 'remote' || !!(projectData as any).onsiteLocation;
@@ -149,6 +150,23 @@ export default function EditProjectPage() {
         description: 'Looking for a student to consult on where AI solutions could provide the most value in our business operations.',
         type: 'consulting'
       }));
+    } else if (!formData.isAiConsultation) {
+      // Clear auto-filled values when unchecking AI consultation
+      setFormData(prev => {
+        const updates: any = { ...prev };
+        // Only clear if they match the default AI consultation values
+        if (prev.title === 'AI Solutions Consultation') {
+          updates.title = '';
+        }
+        if (prev.description === 'Looking for a student to consult on where AI solutions could provide the most value in our business operations.') {
+          updates.description = '';
+        }
+        // Reset type if it was set to consulting by the AI consultation
+        if (prev.type === 'consulting') {
+          updates.type = 'project-based';
+        }
+        return updates;
+      });
     }
   }, [formData.isAiConsultation]);
 
@@ -241,19 +259,23 @@ export default function EditProjectPage() {
     try {
       const submissionData = {
         ...formData,
-        // Clean up optional fields that weren't filled
-        estimatedDuration: showOptionalFields.duration ? formData.estimatedDuration : undefined,
-        estimatedHoursPerWeek: showOptionalFields.hours ? formData.estimatedHoursPerWeek : undefined,
-        compensationType: showOptionalFields.compensation ? formData.compensationType : undefined,
-        compensationValue: showOptionalFields.compensation ? formData.compensationValue : undefined,
-        budget: showOptionalFields.budget ? formData.budget : undefined,
-        requiredSkills: showOptionalFields.skills ? formData.requiredSkills : [],
-        deliverables: showOptionalFields.deliverables ? (formData.deliverables || []).filter(d => d.trim()) : [],
+        // Send actual form data - use undefined for empty values to clear them
+        // Only send values that are actually shown in the UI
+        estimatedDuration: showOptionalFields.duration && formData.estimatedDuration ? formData.estimatedDuration : undefined,
+        estimatedHoursPerWeek: showOptionalFields.hours && formData.estimatedHoursPerWeek ? formData.estimatedHoursPerWeek : undefined,
+        // Always send compensation type - 'experience' when unchecked, selected value when checked
+        compensationType: showOptionalFields.compensation ? formData.compensationType : 'experience',
+        compensationValue: showOptionalFields.compensation ? formData.compensationValue : '',
+        budget: showOptionalFields.budget && formData.budget ? formData.budget : undefined,
+        requiredSkills: showOptionalFields.skills && formData.requiredSkills?.length ? formData.requiredSkills : [],
+        deliverables: showOptionalFields.deliverables && formData.deliverables?.length ? formData.deliverables.filter(d => d && d.trim()) : [],
         location: showOptionalFields.location ? formData.location : 'remote',
         onsiteLocation: showOptionalFields.location && formData.location === 'onsite' ? formData.onsiteLocation : undefined,
         // Map duration field for backward compatibility
-        duration: showOptionalFields.duration ? formData.estimatedDuration : undefined
+        duration: showOptionalFields.duration && formData.estimatedDuration ? formData.estimatedDuration : undefined
       };
+
+      console.log('Submitting edit form data:', submissionData);
 
       const response = await fetch(`/api/business/projects/${projectId}`, {
         method: 'PUT',
@@ -261,12 +283,20 @@ export default function EditProjectPage() {
         body: JSON.stringify(submissionData),
       });
 
+      const data = await response.json();
+
       if (response.ok) {
+        console.log('Update successful, redirecting to dashboard');
         toast.success('Opportunity updated successfully!');
+        // Trigger storage event to update dashboard
+        window.localStorage.setItem('projectsUpdated', Date.now().toString());
+        // Force refresh dashboard on navigation
         router.push('/business/dashboard');
+        router.refresh();
       } else {
-        const data = await response.json();
-        toast.error(data.error || 'Failed to update opportunity');
+        console.error('Update failed:', data);
+        const errorMessage = data.details ? `${data.error}: ${data.details}` : data.error || 'Failed to update opportunity';
+        toast.error(errorMessage);
       }
     } catch (error) {
       console.error('Error updating opportunity:', error);
@@ -339,10 +369,10 @@ export default function EditProjectPage() {
 
   const getCompensationLabel = (type: string) => {
     switch (type) {
-      case 'paid-hourly': return 'Paid (Hourly)';
-      case 'paid-stipend': return 'Paid (Stipend)';
-      case 'paid-fixed': return 'Paid (Fixed Project Fee)';
-      case 'paid-salary': return 'Paid (Salary)';
+      case 'paid-hourly': return 'Hourly';
+      case 'paid-stipend': return 'Stipend';
+      case 'paid-fixed': return 'Fixed Project Fee';
+      case 'paid-salary': return 'Salary';
       case 'equity': return 'Equity / Ownership';
       case 'experience': return 'Experience / Portfolio only';
       case 'other': return 'Other';
@@ -666,7 +696,50 @@ export default function EditProjectPage() {
                   <button
                     key={key}
                     type="button"
-                    onClick={() => setShowOptionalFields(prev => ({ ...prev, [key]: !prev[key as keyof typeof prev] }))}
+                    onClick={() => {
+                      const isCurrentlyShown = showOptionalFields[key as keyof typeof showOptionalFields];
+                      setShowOptionalFields(prev => ({ ...prev, [key]: !prev[key as keyof typeof prev] }));
+
+                      // Clear the form data when unchecking
+                      if (isCurrentlyShown) {
+                        setFormData(prev => {
+                          const updates = { ...prev };
+                          switch (key) {
+                            case 'duration':
+                              updates.estimatedDuration = '';
+                              break;
+                            case 'hours':
+                              updates.estimatedHoursPerWeek = '';
+                              break;
+                            case 'compensation':
+                              updates.compensationType = 'experience';
+                              updates.compensationValue = '';
+                              break;
+                            case 'budget':
+                              updates.budget = '';
+                              break;
+                            case 'skills':
+                              updates.requiredSkills = [];
+                              break;
+                            case 'deliverables':
+                              updates.deliverables = [''];
+                              break;
+                            case 'location':
+                              updates.location = 'remote';
+                              updates.onsiteLocation = '';
+                              break;
+                          }
+                          return updates;
+                        });
+                      } else if (!isCurrentlyShown && key === 'compensation') {
+                        // When showing compensation, default to fixed project fee
+                        setFormData(prev => ({
+                          ...prev,
+                          compensationType: 'paid-fixed',
+                          compensationValue: prev.compensationValue || ''
+                        }));
+                      }
+                    }}
                     className={`px-4 py-2 rounded-lg border-2 transition-all text-sm ${
                       showOptionalFields[key as keyof typeof showOptionalFields]
                         ? 'border-green-500 bg-green-50 text-green-700 font-medium'

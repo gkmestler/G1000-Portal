@@ -253,7 +253,7 @@ export default function BusinessProjectDetailPage({ params }: { params: { id: st
           onClick={() => setActiveTab('overview')}
           className={`px-4 py-2 font-medium border-b-2 transition-colors ${
             activeTab === 'overview'
-              ? 'border-orange-500 text-orange-600'
+              ? 'border-generator-green text-generator-green'
               : 'border-transparent text-gray-600 hover:text-gray-800'
           }`}
         >
@@ -263,7 +263,7 @@ export default function BusinessProjectDetailPage({ params }: { params: { id: st
           onClick={() => setActiveTab('updates')}
           className={`px-4 py-2 font-medium border-b-2 transition-colors ${
             activeTab === 'updates'
-              ? 'border-orange-500 text-orange-600'
+              ? 'border-generator-green text-generator-green'
               : 'border-transparent text-gray-600 hover:text-gray-800'
           }`}
         >
@@ -273,7 +273,7 @@ export default function BusinessProjectDetailPage({ params }: { params: { id: st
           onClick={() => setActiveTab('review')}
           className={`px-4 py-2 font-medium border-b-2 transition-colors ${
             activeTab === 'review'
-              ? 'border-orange-500 text-orange-600'
+              ? 'border-generator-green text-generator-green'
               : 'border-transparent text-gray-600 hover:text-gray-800'
           }`}
         >
@@ -289,7 +289,7 @@ export default function BusinessProjectDetailPage({ params }: { params: { id: st
             {!editingOverview ? (
               <button
                 onClick={() => setEditingOverview(true)}
-                className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
+                className="px-4 py-2 bg-generator-green text-white rounded-lg hover:bg-generator-dark"
               >
                 Edit Overview
               </button>
@@ -303,7 +303,7 @@ export default function BusinessProjectDetailPage({ params }: { params: { id: st
                 </button>
                 <button
                   onClick={handleSaveOverview}
-                  className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
+                  className="px-4 py-2 bg-generator-green text-white rounded-lg hover:bg-generator-dark"
                 >
                   Save Changes
                 </button>
@@ -356,7 +356,7 @@ export default function BusinessProjectDetailPage({ params }: { params: { id: st
                 ))}
                 <button
                   onClick={() => setOverviewForm({ ...overviewForm, deliverables: [...overviewForm.deliverables, ''] })}
-                  className="text-orange-500 hover:text-orange-600 text-sm"
+                  className="text-generator-green hover:text-generator-dark text-sm"
                 >
                   + Add deliverable
                 </button>
@@ -449,7 +449,7 @@ export default function BusinessProjectDetailPage({ params }: { params: { id: st
                   <h3 className="font-medium text-gray-700 mb-1">Meeting Link</h3>
                   {project.overview.meetingLink ? (
                     <a href={project.overview.meetingLink} target="_blank" rel="noopener noreferrer"
-                       className="text-orange-500 hover:underline">
+                       className="text-generator-green hover:underline">
                       Join Meeting
                     </a>
                   ) : (
@@ -485,7 +485,7 @@ export default function BusinessProjectDetailPage({ params }: { params: { id: st
                     <div className="text-sm text-gray-500 mb-1">
                       {formatDate(update.createdAt)}
                     </div>
-                    <div className="text-2xl font-bold text-orange-500">
+                    <div className="text-2xl font-bold text-generator-green">
                       {update.progressPercentage}% Complete
                     </div>
                   </div>
@@ -521,7 +521,7 @@ export default function BusinessProjectDetailPage({ params }: { params: { id: st
                       <div className="space-y-1">
                         {update.links.map((link, index) => (
                           <a key={index} href={link.url} target="_blank" rel="noopener noreferrer"
-                             className="text-orange-500 hover:underline block">
+                             className="text-generator-green hover:underline block">
                             {link.title || link.url}
                           </a>
                         ))}
@@ -565,7 +565,7 @@ export default function BusinessProjectDetailPage({ params }: { params: { id: st
                     />
                     <button
                       onClick={() => handleAddComment(update.id)}
-                      className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
+                      className="px-4 py-2 bg-generator-green text-white rounded-lg hover:bg-generator-dark"
                     >
                       Comment
                     </button>
@@ -682,7 +682,7 @@ export default function BusinessProjectDetailPage({ params }: { params: { id: st
 
                 <button
                   onClick={handleSubmitReview}
-                  className="w-full py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 font-medium"
+                  className="w-full py-3 bg-generator-green text-white rounded-lg hover:bg-generator-dark font-medium"
                 >
                   Submit Review & Complete Project
                 </button>
