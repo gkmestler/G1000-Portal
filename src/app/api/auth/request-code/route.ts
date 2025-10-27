@@ -45,12 +45,46 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ Found participant:', participant.name);
 
-    // Use Supabase Auth to send OTP email (without emailRedirectTo to get just the code)
+    // First, check if user exists in Supabase Auth
+    const { data: userList } = await supabaseAdmin.auth.admin.listUsers({
+      filter: `email.eq.${email.toLowerCase()}`
+    });
+
+    const userExists = userList && userList.users && userList.users.length > 0;
+    console.log('👤 User exists in auth?', userExists);
+
+    // If user doesn't exist, create them first
+    if (!userExists) {
+      console.log('🔨 Creating new user in Supabase Auth...');
+      const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+        email: email.toLowerCase(),
+        email_confirm: false,
+        user_metadata: {
+          name: participant.name,
+          major: participant.major,
+          year: participant.year,
+          role: 'student'
+        }
+      });
+
+      if (createError) {
+        console.error('❌ Failed to create user:', createError);
+        return NextResponse.json(
+          { error: 'Failed to create user account. Please try again.' },
+          { status: 500 }
+        );
+      }
+
+      console.log('✅ User created successfully:', newUser.user.id);
+    }
+
+    // Now send the OTP email (user now exists)
+    console.log('📧 Sending OTP email...');
     const { data, error } = await supabaseAdmin.auth.signInWithOtp({
       email: email.toLowerCase(),
       options: {
-        shouldCreateUser: true,
-        data: {
+        shouldCreateUser: false, // User already exists or was just created
+        data: userExists ? undefined : {
           name: participant.name,
           major: participant.major,
           year: participant.year,
