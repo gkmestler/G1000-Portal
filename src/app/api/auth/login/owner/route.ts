@@ -3,6 +3,9 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { verifyPassword, signToken, createAuthResponse } from '@/lib/auth';
 import { validateEmail } from '@/lib/utils';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const { email, password } = await request.json();
