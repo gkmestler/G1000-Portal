@@ -34,13 +34,16 @@ export default function BusinessProjectsPage() {
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
   const router = useRouter();
 
+  // Temporarily show Coming Soon while feature is under development
+  const showComingSoon = true;
+
   useEffect(() => {
     fetchProjects();
   }, []);
 
   const fetchProjects = async () => {
     try {
-      const response = await fetch('/api/business/projects', {
+      const response = await fetch('/api/business/projects?type=active-projects', {
         credentials: 'include'
       });
 
@@ -96,6 +99,32 @@ export default function BusinessProjectsPage() {
     );
   }
 
+  // Temporarily show Coming Soon
+  if (showComingSoon) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center max-w-2xl mx-auto px-4">
+          <svg className="w-20 h-20 text-gray-400 mx-auto mb-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          </svg>
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">Project Management Coming Soon</h1>
+          <p className="text-xl text-gray-600 mb-8">
+            We're building powerful tools to help you manage your student projects.
+          </p>
+          <p className="text-lg text-gray-500 mb-8">
+            Soon you'll be able to track progress, review deliverables, provide feedback,
+            and manage all your active projects from one centralized dashboard.
+          </p>
+          <Link href="/business/dashboard">
+            <button className="bg-generator-green hover:bg-generator-green-dark text-white font-medium px-6 py-3 rounded-lg transition-colors">
+              Back to Dashboard
+            </button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
@@ -111,7 +140,7 @@ export default function BusinessProjectsPage() {
           onClick={() => setFilter('all')}
           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
             filter === 'all'
-              ? 'bg-orange-500 text-white'
+              ? 'bg-generator-green text-white'
               : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
           }`}
         >
@@ -121,7 +150,7 @@ export default function BusinessProjectsPage() {
           onClick={() => setFilter('active')}
           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
             filter === 'active'
-              ? 'bg-orange-500 text-white'
+              ? 'bg-generator-green text-white'
               : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
           }`}
         >
@@ -131,7 +160,7 @@ export default function BusinessProjectsPage() {
           onClick={() => setFilter('completed')}
           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
             filter === 'completed'
-              ? 'bg-orange-500 text-white'
+              ? 'bg-generator-green text-white'
               : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
           }`}
         >
@@ -181,7 +210,7 @@ export default function BusinessProjectsPage() {
 
                   {project.progressPercentage !== undefined && (
                     <div className="text-right">
-                      <div className="text-2xl font-bold text-orange-500">
+                      <div className="text-2xl font-bold text-generator-green">
                         {project.progressPercentage}%
                       </div>
                       <div className="text-xs text-gray-500">Progress</div>
@@ -206,14 +235,14 @@ export default function BusinessProjectsPage() {
                       <span className="font-medium">Last update:</span> {getDaysAgo(project.lastUpdate)}
                     </div>
                   ) : (
-                    <div className="text-sm text-orange-600">
+                    <div className="text-sm text-generator-dark">
                       No updates yet - waiting for student to post first update
                     </div>
                   )}
 
                   {/* Overview Status */}
                   {!project.hasOverview && (
-                    <div className="text-sm text-amber-600 bg-amber-50 px-3 py-1 rounded-md inline-block">
+                    <div className="text-sm text-generator-dark bg-generator-green/10 px-3 py-1 rounded-md inline-block">
                       ⚠️ Project overview needs to be set up
                     </div>
                   )}
@@ -224,7 +253,7 @@ export default function BusinessProjectsPage() {
                   <div className="mt-4">
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
-                        className="bg-orange-500 h-2 rounded-full transition-all duration-300"
+                        className="bg-generator-green h-2 rounded-full transition-all duration-300"
                         style={{ width: `${project.progressPercentage}%` }}
                       />
                     </div>

@@ -32,6 +32,9 @@ export default function ProjectsPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
 
+  // Temporarily show Coming Soon while feature is under development
+  const showComingSoon = true;
+
   useEffect(() => {
     fetchProjects();
   }, []);
@@ -94,6 +97,30 @@ export default function ProjectsPage() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading your projects...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Temporarily show Coming Soon
+  if (showComingSoon) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center max-w-2xl mx-auto px-4">
+          <BriefcaseIcon className="w-20 h-20 text-gray-400 mx-auto mb-6" />
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">Projects Coming Soon</h1>
+          <p className="text-xl text-gray-600 mb-8">
+            We're putting the finishing touches on your projects workspace.
+          </p>
+          <p className="text-lg text-gray-500 mb-8">
+            Soon you'll be able to track your active internships, manage deliverables,
+            submit updates, and collaborate with business owners all in one place.
+          </p>
+          <Link href="/student/dashboard">
+            <Button className="bg-primary-600 hover:bg-primary-700 text-white">
+              Back to Dashboard
+            </Button>
+          </Link>
         </div>
       </div>
     );
