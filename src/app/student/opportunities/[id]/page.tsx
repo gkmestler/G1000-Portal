@@ -84,15 +84,29 @@ export default function OpportunityDetailsPage() {
 
   const getCompensationIcon = (type: string) => {
     switch (type) {
-      case 'stipend': return '💰';
-      case 'equity': return '📈';
-      case 'credit': return '🎓';
-      case 'hourly-wage': return '⏱️';
-      case 'salary': return '💵';
-      case 'commission': return '💼';
-      case 'hourly-commission': return '⏱️💼';
-      case 'unpaid': return '🤝';
-      default: return '💼';
+      case 'paid-hourly':
+      case 'paid-stipend':
+      case 'paid-fixed':
+      case 'paid-salary':
+        return '💰';
+      case 'equity':
+        return '📈';
+      case 'experience':
+        return '🎓';
+      default:
+        return '💼';
+    }
+  };
+
+  const getCompensationLabel = (type: string) => {
+    switch (type) {
+      case 'paid-hourly': return 'Hourly';
+      case 'paid-stipend': return 'Stipend';
+      case 'paid-fixed': return 'Fixed Fee';
+      case 'paid-salary': return 'Salary';
+      case 'equity': return 'Equity';
+      case 'experience': return 'Experience';
+      default: return type;
     }
   };
 
@@ -162,16 +176,35 @@ export default function OpportunityDetailsPage() {
               </div>
             </div>
             <div className="mt-4 md:mt-0 md:ml-6 flex flex-col items-start md:items-end">
-              <div className="flex items-center space-x-2 text-gray-700 mb-3">
-                <span className="text-xl">{getCompensationIcon(opportunity.compensationType)}</span>
-                <span className="font-medium">{opportunity.compensationValue}</span>
-              </div>
-              <div className="flex items-center text-sm text-gray-500 mb-3">
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                {opportunity.duration}
-              </div>
+              {opportunity.compensationType && opportunity.compensationType !== 'experience' && (
+                <div className="flex items-center space-x-2 text-gray-700 mb-3">
+                  <span className="text-xl">{getCompensationIcon(opportunity.compensationType)}</span>
+                  <span className="font-medium">
+                    {getCompensationLabel(opportunity.compensationType)}
+                    {opportunity.compensationValue && opportunity.compensationValue !== '' ? (
+                      <>: {opportunity.compensationValue}</>
+                    ) : (
+                      <>: Not specified</>
+                    )}
+                  </span>
+                </div>
+              )}
+              {opportunity.estimatedDuration && (
+                <div className="flex items-center text-sm text-gray-500 mb-3">
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Duration: {opportunity.estimatedDuration}
+                </div>
+              )}
+              {opportunity.estimatedHoursPerWeek && (
+                <div className="flex items-center text-sm text-gray-500 mb-3">
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  Hours: {opportunity.estimatedHoursPerWeek}
+                </div>
+              )}
               <div className="mt-4">
                 {userApplication ? (
                   userApplication.status === 'withdrawn' ? (
@@ -212,10 +245,8 @@ export default function OpportunityDetailsPage() {
           </div>
         </div>
 
-        {/* Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-8">
+        {/* Main Content Section */}
+        <div className="space-y-8">
             {/* AI Consultation Banner */}
             {opportunity.isAiConsultation && (
               <Card className="border-blue-200 bg-blue-50">
@@ -270,7 +301,7 @@ export default function OpportunityDetailsPage() {
             )}
 
             {/* Deliverables */}
-            {opportunity.deliverables.length > 0 && (
+            {opportunity.deliverables && opportunity.deliverables.length > 0 && (
               <Card>
                 <CardContent className="p-6">
                   <h2 className="text-xl font-semibold text-gray-900 mb-4">Deliverables</h2>
@@ -288,22 +319,79 @@ export default function OpportunityDetailsPage() {
               </Card>
             )}
 
+          {/* Key Details Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Project Type */}
             <Card>
               <CardContent className="p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Project Type</h2>
-                <div className="flex items-center mb-2">
-                  <span className="text-gray-700 capitalize font-medium">{opportunity.type.replace(/-/g, ' ')}</span>
+                <h3 className="font-semibold text-gray-900 mb-3">Project Type</h3>
+                <div className="flex items-center">
+                  <span className="px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium capitalize">
+                    {opportunity.type.replace(/-/g, ' ')}
+                  </span>
                 </div>
-                {opportunity.typeExplanation && (
-                  <p className="text-gray-600">{opportunity.typeExplanation}</p>
-                )}
               </CardContent>
             </Card>
-          </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
+            {/* Location */}
+            <Card>
+              <CardContent className="p-6">
+                <h3 className="font-semibold text-gray-900 mb-3">Location</h3>
+                <div className="flex items-center">
+                  <svg className="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <div>
+                    <p className="font-medium capitalize">{opportunity.location || 'remote'}</p>
+                    {opportunity.location === 'onsite' && opportunity.onsiteLocation && (
+                      <p className="text-sm text-gray-600">{opportunity.onsiteLocation}</p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Duration & Hours */}
+            {(opportunity.estimatedDuration || opportunity.estimatedHoursPerWeek) && (
+              <Card>
+                <CardContent className="p-6">
+                  <h3 className="font-semibold text-gray-900 mb-3">Time Commitment</h3>
+                  <div className="space-y-2 text-gray-700">
+                    {opportunity.estimatedDuration && (
+                      <div className="flex items-center">
+                        <svg className="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span className="text-sm">Duration: {opportunity.estimatedDuration}</span>
+                      </div>
+                    )}
+                    {opportunity.estimatedHoursPerWeek && (
+                      <div className="flex items-center">
+                        <svg className="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-sm">{opportunity.estimatedHoursPerWeek}</span>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Project Budget */}
+            {opportunity.budget && (
+              <Card>
+                <CardContent className="p-6">
+                  <h3 className="font-semibold text-gray-900 mb-3">Project Budget</h3>
+                  <div className="flex items-center">
+                    <span className="text-2xl mr-2">💼</span>
+                    <span className="text-lg font-medium text-gray-900">{opportunity.budget}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Compensation */}
             {opportunity.compensationType && (
               <Card>
@@ -335,63 +423,11 @@ export default function OpportunityDetailsPage() {
                         )}
                       </div>
                     </div>
-                    {opportunity.budget && (
-                      <div className="pt-2 border-t">
-                        <p className="text-sm text-gray-600">Budget: {opportunity.budget}</p>
-                      </div>
-                    )}
                   </div>
                 </CardContent>
               </Card>
             )}
 
-            {/* Duration & Hours */}
-            {(opportunity.estimatedDuration || opportunity.estimatedHoursPerWeek) && (
-              <Card>
-                <CardContent className="p-6">
-                  <h3 className="font-semibold text-gray-900 mb-3">Time Commitment</h3>
-                  <div className="space-y-2 text-gray-700">
-                    {opportunity.estimatedDuration && (
-                      <div className="flex items-center">
-                        <svg className="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        <span className="text-sm">Duration: {opportunity.estimatedDuration}</span>
-                      </div>
-                    )}
-                    {opportunity.estimatedHoursPerWeek && (
-                      <div className="flex items-center">
-                        <svg className="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <span className="text-sm">{opportunity.estimatedHoursPerWeek}</span>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Location */}
-            {opportunity.location && (
-              <Card>
-                <CardContent className="p-6">
-                  <h3 className="font-semibold text-gray-900 mb-3">Location</h3>
-                  <div className="flex items-center">
-                    <svg className="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    <div>
-                      <p className="font-medium capitalize">{opportunity.location}</p>
-                      {opportunity.location === 'onsite' && opportunity.onsiteLocation && (
-                        <p className="text-sm text-gray-600">{opportunity.onsiteLocation}</p>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
 
             {/* Application Window */}
             <Card>
@@ -442,23 +478,27 @@ export default function OpportunityDetailsPage() {
               </CardContent>
             </Card>
 
+          </div>
+
+          {/* Secondary Information Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Required Skills */}
             <Card>
               <CardContent className="p-6">
                 <h3 className="font-semibold text-gray-900 mb-3">Required Skills</h3>
-                {opportunity.requiredSkills.length > 0 ? (
+                {opportunity.requiredSkills && opportunity.requiredSkills.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {opportunity.requiredSkills.map((skill, index) => (
                       <span
                         key={index}
-                        className="px-2 py-1 bg-gray-100 text-gray-700 text-sm rounded"
+                        className="px-2 py-1 bg-blue-100 text-blue-700 text-sm rounded-full"
                       >
                         {skill}
                       </span>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-gray-500">No specific skills required</p>
+                  <p className="text-gray-500 text-sm">No specific skills required</p>
                 )}
               </CardContent>
             </Card>
@@ -467,61 +507,63 @@ export default function OpportunityDetailsPage() {
             <Card>
               <CardContent className="p-6">
                 <h3 className="font-semibold text-gray-900 mb-3">About the Company</h3>
-                <p className="text-gray-700 mb-3">
-                  {opportunity.owner?.companyName || 'Business Owner'}
-                </p>
-                {opportunity.owner?.websiteUrl && (
-                  <a 
-                    href={opportunity.owner.websiteUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary-600 hover:text-primary-800 flex items-center"
-                  >
-                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                    Visit Website
-                  </a>
-                )}
+                <div className="space-y-2">
+                  <p className="text-gray-700 font-medium">
+                    {opportunity.owner?.companyName || 'Business Owner'}
+                  </p>
+                  {opportunity.owner?.websiteUrl && (
+                    <a
+                      href={opportunity.owner.websiteUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary-600 hover:text-primary-800 flex items-center text-sm"
+                    >
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                      Visit Website
+                    </a>
+                  )}
+                </div>
               </CardContent>
             </Card>
+          </div>
 
-            {/* Apply Button (Mobile) */}
-            <div className="lg:hidden">
-              {userApplication ? (
-                userApplication.status === 'withdrawn' ? (
-                  <div className="text-center text-gray-500 py-3">
-                    Application Withdrawn
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-center text-green-600 py-2">
-                      <CheckCircleIcon className="w-5 h-5 mr-2" />
-                      <span className="font-medium">Application Submitted</span>
-                    </div>
-                    <Button
-                      variant="outline"
-                      className="w-full text-red-600 border-red-300 hover:bg-red-50"
-                      onClick={handleWithdraw}
-                    >
-                      Withdraw Application
-                    </Button>
-                  </div>
-                )
+          {/* Mobile Apply Button */}
+          <div className="lg:hidden mt-8">
+            {userApplication ? (
+              userApplication.status === 'withdrawn' ? (
+                <div className="text-center text-gray-500 py-3">
+                  Application Withdrawn
+                </div>
               ) : (
-                isOpen ? (
-                  <Link href={`/student/opportunities/${opportunity.id}/apply`}>
-                    <Button className="w-full">
-                      Apply Now
-                    </Button>
-                  </Link>
-                ) : (
-                  <Button disabled className="w-full">
-                    {new Date() > new Date(opportunity.applyWindowEnd) ? 'Applications Closed' : 'Applications Not Open Yet'}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-center text-green-600 py-2">
+                    <CheckCircleIcon className="w-5 h-5 mr-2" />
+                    <span className="font-medium">Application Submitted</span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="w-full text-red-600 border-red-300 hover:bg-red-50"
+                    onClick={handleWithdraw}
+                  >
+                    Withdraw Application
                   </Button>
-                )
-              )}
-            </div>
+                </div>
+              )
+            ) : (
+              isOpen ? (
+                <Link href={`/student/opportunities/${opportunity.id}/apply`}>
+                  <Button className="w-full">
+                    Apply Now
+                  </Button>
+                </Link>
+              ) : (
+                <Button disabled className="w-full">
+                  {new Date() > new Date(opportunity.applyWindowEnd) ? 'Applications Closed' : 'Applications Not Open Yet'}
+                </Button>
+              )
+            )}
           </div>
         </div>
       </div>
