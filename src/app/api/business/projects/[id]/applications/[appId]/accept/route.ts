@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getUserFromRequest } from '@/lib/auth';
-import { sendEmail } from '@/lib/email';
 
 export async function POST(
   request: NextRequest,
@@ -215,91 +214,8 @@ export async function POST(
       .eq('id', project.owner_id)
       .single();
 
-    // Send acceptance email to the selected student
-    if (acceptedStudent && project && owner && ownerProfile) {
-      try {
-        await sendEmail({
-          to: acceptedStudent.email,
-          subject: `Congratulations! You've been selected for ${project.title}`,
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h2 style="color: #006744;">Congratulations! 🎉</h2>
-
-              <p>Hi ${acceptedStudent.name},</p>
-
-              <p>Great news! You have been selected for the project: <strong>${project.title}</strong> at ${ownerProfile.company_name}.</p>
-
-              ${message ? `
-                <div style="background: #f0f9f4; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #006744;">
-                  <h3 style="margin-top: 0; color: #006744;">Message from ${owner.name}</h3>
-                  <p>${message}</p>
-                </div>
-              ` : ''}
-
-              <p><strong>Next Steps:</strong></p>
-              <ul>
-                <li>The business owner will reach out to you soon with more details</li>
-                <li>Please check your email regularly for further communication</li>
-                <li>If you have any questions, feel free to reply to this email</li>
-              </ul>
-
-              <p><strong>Business Contact:</strong> ${owner.email}</p>
-
-              <a href="${process.env.NEXT_PUBLIC_APP_URL}/student/applications" style="background: #006744; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 20px 0;">View Your Applications</a>
-
-              <p>Congratulations once again on this achievement!</p>
-
-              <p>Best regards,<br>The G1000 Portal Team</p>
-            </div>
-          `
-        });
-      } catch (emailError) {
-        console.error('Error sending acceptance email:', emailError);
-        // Don't fail the request if email fails
-      }
-    }
-
-    // Send rejection emails to other applicants
-    if (otherApplications && otherApplications.length > 0) {
-      for (const otherApp of otherApplications) {
-        const { data: student } = await supabaseAdmin
-          .from('users')
-          .select('name, email')
-          .eq('id', otherApp.student_id)
-          .single();
-
-        if (student) {
-          try {
-            await sendEmail({
-              to: student.email,
-              subject: `Application Update - ${project.title}`,
-              html: `
-                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                  <h2 style="color: #006744;">Application Update</h2>
-
-                  <p>Hi ${student.name},</p>
-
-                  <p>Thank you for your interest in the project: <strong>${project.title}</strong> at ${ownerProfile?.company_name}.</p>
-
-                  <p>We wanted to inform you that we have selected another candidate for this opportunity. We appreciate the time and effort you put into your application.</p>
-
-                  <p>Please don't be discouraged - there are many exciting opportunities on the G1000 Portal. We encourage you to continue exploring and applying to projects that match your skills and interests.</p>
-
-                  <a href="${process.env.NEXT_PUBLIC_APP_URL}/student/opportunities" style="background: #006744; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 20px 0;">Explore More Opportunities</a>
-
-                  <p>Best of luck with your future applications!</p>
-
-                  <p>The G1000 Portal Team</p>
-                </div>
-              `
-            });
-          } catch (emailError) {
-            console.error('Error sending rejection email:', emailError);
-            // Continue with other emails even if one fails
-          }
-        }
-      }
-    }
+    // Email functionality has been moved to the client side with manual send button
+    console.log('Application accepted successfully. Email should be sent manually from the client.');
 
     return NextResponse.json({ data: acceptedApplication });
   } catch (error: any) {

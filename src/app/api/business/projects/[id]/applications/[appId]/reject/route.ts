@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getUserFromRequest } from '@/lib/auth';
-import { sendEmail } from '@/lib/email';
 
 export async function POST(
   request: NextRequest,
@@ -104,44 +103,8 @@ export async function POST(
       .eq('id', projectData?.owner_id)
       .single();
 
-    // Send email notification to student
-    if (student && projectData && owner && ownerProfile) {
-      try {
-        await sendEmail({
-          to: student.email,
-          subject: `Application Update - ${projectData.title}`,
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h2 style="color: #006744;">Application Update</h2>
-              
-              <p>Hi ${student.name},</p>
-              
-              <p>Thank you for your interest in the project: <strong>${projectData.title}</strong> at ${ownerProfile.company_name}.</p>
-              
-              <p>After careful consideration, we have decided to move forward with other candidates for this particular opportunity.</p>
-              
-              ${reason ? `
-                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                  <h3 style="margin-top: 0;">Feedback</h3>
-                  <p>${reason}</p>
-                </div>
-              ` : ''}
-              
-              <p>Please don't be discouraged - there are many exciting opportunities on the G1000 Portal. We encourage you to continue exploring and applying to projects that match your skills and interests.</p>
-              
-              <a href="${process.env.NEXT_PUBLIC_APP_URL}/student/opportunities" style="background: #006744; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 20px 0;">Explore More Opportunities</a>
-              
-              <p>Best of luck with your future applications!</p>
-              
-              <p>The G1000 Portal Team</p>
-            </div>
-          `
-        });
-      } catch (emailError) {
-        console.error('Error sending email:', emailError);
-        // Don't fail the request if email fails
-      }
-    }
+    // Email functionality has been moved to the client side with manual send button
+    console.log('Application rejected. Email should be sent manually from the client.');
 
     return NextResponse.json({ data: updatedApplication });
   } catch (error) {

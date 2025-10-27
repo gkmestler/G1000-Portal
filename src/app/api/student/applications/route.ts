@@ -64,22 +64,31 @@ export async function GET(request: NextRequest) {
       .filter(app => app.projects?.owner_id)
       .map(app => app.projects.owner_id))];
 
-    // Fetch business owner profiles for all owners
-    let ownerProfiles: Record<string, { companyName: string; logoUrl: string | null }> = {};
+    // Fetch business owner profiles and user details for all owners
+    let ownerProfiles: Record<string, { companyName: string; logoUrl: string | null; email: string; name: string }> = {};
     if (ownerIds.length > 0) {
       const { data: profiles, error: profilesError } = await supabaseAdmin
         .from('business_owner_profiles')
         .select('user_id, company_name, logo_url')
         .in('user_id', ownerIds);
 
-      if (!profilesError && profiles) {
+      // Also fetch user details (email and name)
+      const { data: users, error: usersError } = await supabaseAdmin
+        .from('users')
+        .select('id, email, name')
+        .in('id', ownerIds);
+
+      if (!profilesError && profiles && !usersError && users) {
         ownerProfiles = profiles.reduce((acc, profile) => {
+          const user = users.find(u => u.id === profile.user_id);
           acc[profile.user_id] = {
             companyName: profile.company_name,
-            logoUrl: profile.logo_url
+            logoUrl: profile.logo_url,
+            email: user?.email || '',
+            name: user?.name || ''
           };
           return acc;
-        }, {} as Record<string, { companyName: string; logoUrl: string | null }>);
+        }, {} as Record<string, { companyName: string; logoUrl: string | null; email: string; name: string }>);
       }
     }
 
@@ -107,7 +116,9 @@ export async function GET(request: NextRequest) {
         compensationValue: app.projects.compensation_value,
         ownerId: app.projects.owner_id,
         companyName: ownerProfiles[app.projects.owner_id]?.companyName || 'Unknown Company',
-        companyLogoUrl: ownerProfiles[app.projects.owner_id]?.logoUrl || null
+        companyLogoUrl: ownerProfiles[app.projects.owner_id]?.logoUrl || null,
+        ownerEmail: ownerProfiles[app.projects.owner_id]?.email || '',
+        ownerName: ownerProfiles[app.projects.owner_id]?.name || ''
       } : null
     }));
 

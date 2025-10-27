@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getUserFromRequest } from '@/lib/auth';
-import { sendEmail } from '@/lib/email';
 import { toISOString } from '@/lib/utils';
 
 export async function POST(
@@ -116,49 +115,8 @@ export async function POST(
       .eq('id', projectData?.owner_id)
       .single();
 
-    // Send email notification to student about the reschedule
-    if (student && projectData && owner && ownerProfile) {
-      try {
-        await sendEmail({
-          to: student.email,
-          subject: `Interview Rescheduled - ${projectData.title}`,
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h2 style="color: #006744;">Interview Time Updated</h2>
-              
-              <p>Hi ${student.name},</p>
-              
-              <p>${owner.name} from ${ownerProfile.company_name} has updated the time for your interview for the project: <strong>${projectData.title}</strong>.</p>
-              
-              <div style="background: #fef3c7; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
-                <h3 style="margin-top: 0; color: #92400e;">Meeting Time Change</h3>
-                <p style="margin: 10px 0; color: #78350f;"><strong>Previous Time:</strong> ${oldMeetingDateTime ? new Date(oldMeetingDateTime).toLocaleString() : 'Not specified'}</p>
-                <p style="margin: 10px 0; color: #78350f;"><strong>New Time:</strong> ${new Date(toISOString(meetingDateTime)).toLocaleString()}</p>
-                ${meetingLink ? `<p style="margin: 10px 0; color: #78350f;"><strong>Meeting Link:</strong> <a href="${meetingLink}" style="color: #d97706;">${meetingLink}</a></p>` : ''}
-              </div>
-              
-              ${message ? `
-                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                  <h3 style="margin-top: 0;">Message from ${owner.name}:</h3>
-                  <p style="margin-bottom: 0;">${message}</p>
-                </div>
-              ` : ''}
-              
-              <p>Please update your calendar with the new meeting time. We apologize for any inconvenience this may cause.</p>
-              
-              <a href="${process.env.NEXT_PUBLIC_APP_URL}/student/applications" style="background: #006744; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 20px 0;">View Updated Interview Details</a>
-              
-              <p>Looking forward to the interview!</p>
-              
-              <p>The G1000 Portal Team</p>
-            </div>
-          `
-        });
-      } catch (emailError) {
-        console.error('Error sending email:', emailError);
-        // Don't fail the request if email fails
-      }
-    }
+    // Email functionality has been moved to the client side with manual send button
+    console.log('Interview rescheduled. Email should be sent manually from the client.');
 
     return NextResponse.json({ data: updatedApplication });
   } catch (error) {

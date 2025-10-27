@@ -15,6 +15,8 @@ import {
 import { Application } from '@/types';
 import { formatMeetingDateTime, parseLocalDateTime } from '@/lib/utils';
 import toast from 'react-hot-toast';
+import EmailButton from '@/components/EmailButton';
+import { generateUpdateRequestEmail } from '@/lib/emailTemplates';
 
 export default function ApplicationsPage() {
   const [applications, setApplications] = useState<Application[]>([]);
@@ -97,15 +99,33 @@ export default function ApplicationsPage() {
 
   const generateCalendarLink = (application: Application) => {
     if (!application.meetingDateTime) return '';
-    
+
     const startDate = parseLocalDateTime(application.meetingDateTime);
     const endDate = new Date(startDate.getTime() + 60 * 60 * 1000); // 1 hour later
-    
+
     const title = `Interview: ${application.project?.title}`;
-    const details = `Interview for ${application.project?.title}`;
-    
-    const googleCalendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${startDate.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')}&details=${encodeURIComponent(details)}`;
-    
+    const details = `Interview for ${application.project?.title} with ${application.project?.owner?.name || 'the business owner'}`;
+
+    // Format dates for Google Calendar (YYYYMMDDTHHmmss format in local time)
+    const formatDateForGoogle = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const seconds = String(date.getSeconds()).padStart(2, '0');
+      return `${year}${month}${day}T${hours}${minutes}${seconds}`;
+    };
+
+    const startDateStr = formatDateForGoogle(startDate);
+    const endDateStr = formatDateForGoogle(endDate);
+
+    // Add location if meeting link exists
+    const location = application.meetingLink ? encodeURIComponent(application.meetingLink) : '';
+    const locationParam = location ? `&location=${location}` : '';
+
+    const googleCalendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${startDateStr}/${endDateStr}&details=${encodeURIComponent(details)}${locationParam}`;
+
     return googleCalendarUrl;
   };
 
@@ -334,13 +354,37 @@ export default function ApplicationsPage() {
                       )}
 
                       {(application.status === 'submitted' || application.status === 'underReview') && (
-                        <Button 
-                          variant="danger" 
-                          onClick={() => handleWithdrawApplication(application.id)}
-                          className="w-full"
-                        >
-                          Withdraw
-                        </Button>
+                        <>
+                          <EmailButton
+                            template={(() => {
+                              const project = application.project as any;
+                              const ownerEmail = project?.ownerEmail || '';
+                              const ownerName = project?.ownerName || 'Business Owner';
+                              const companyName = project?.companyName || 'Company';
+                              const projectTitle = project?.title || '';
+                              const studentName = 'Student'; // This will come from the logged-in user
+
+                              return generateUpdateRequestEmail({
+                                ownerEmail,
+                                ownerName,
+                                studentName,
+                                projectTitle,
+                                applicationDate: application.submittedAt
+                              });
+                            })()}
+                            buttonText="Request Update"
+                            variant="outline"
+                            size="md"
+                            className="w-full"
+                          />
+                          <Button
+                            variant="danger"
+                            onClick={() => handleWithdrawApplication(application.id)}
+                            className="w-full"
+                          >
+                            Withdraw
+                          </Button>
+                        </>
                       )}
                     </div>
                   </div>

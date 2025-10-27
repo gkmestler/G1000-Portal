@@ -26,6 +26,13 @@ import {
 import { Application, Project } from '@/types';
 import { formatMeetingDateTime, parseLocalDateTime, toDateTimeLocalValue, toISOString } from '@/lib/utils';
 import toast from 'react-hot-toast';
+import EmailButton from '@/components/EmailButton';
+import {
+  generateInterviewInviteEmail,
+  generateAcceptanceEmail,
+  generateRejectionEmail,
+  generateRescheduleEmail
+} from '@/lib/emailTemplates';
 
 export default function ApplicantsPage() {
   const params = useParams();
@@ -73,6 +80,17 @@ export default function ApplicantsPage() {
   const [acceptMessage, setAcceptMessage] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
+  // Email success states
+  const [emailSuccess, setEmailSuccess] = useState<{
+    type: 'invite' | 'accept' | 'reject' | 'reschedule' | null;
+    application: Application | null;
+    meetingData?: any;
+  }>({
+    type: null,
+    application: null,
+    meetingData: null
+  });
+
   useEffect(() => {
     fetchProjectAndApplications();
   }, [projectId]);
@@ -83,9 +101,10 @@ export default function ApplicantsPage() {
 
   const fetchProjectAndApplications = async () => {
     try {
-      const [projectResponse, applicationsResponse] = await Promise.all([
-        fetch(`/api/business/projects/${projectId}`, { credentials: 'same-origin' }),
-        fetch(`/api/business/projects/${projectId}/applications`, { credentials: 'same-origin' })
+      const [projectResponse, applicationsResponse, userResponse] = await Promise.all([
+        fetch(`/api/business/projects/${projectId}?mode=edit`, { credentials: 'same-origin' }),
+        fetch(`/api/business/projects/${projectId}/applications`, { credentials: 'same-origin' }),
+        fetch(`/api/business/profile`, { credentials: 'same-origin' })
       ]);
 
       if (projectResponse.ok) {
@@ -96,6 +115,19 @@ export default function ApplicantsPage() {
       if (applicationsResponse.ok) {
         const applicationsData = await applicationsResponse.json();
         setApplications(applicationsData.data);
+      }
+
+      if (userResponse.ok) {
+        const userData = await userResponse.json();
+        // Store owner profile in project for email templates
+        setProject((prev: any) => ({
+          ...prev,
+          owner: {
+            ...prev?.owner,
+            ...userData.data,
+            companyName: userData.data?.companyName || userData.data?.company_name
+          }
+        }));
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -148,10 +180,17 @@ export default function ApplicantsPage() {
       );
 
       if (response.ok) {
-        toast.success('Invitation sent successfully!');
+        // Save the meeting data for the email
+        setEmailSuccess({
+          type: 'invite',
+          application: inviteModal.application,
+          meetingData: { ...meetingData }
+        });
+
+        toast.success('Interview scheduled! Now send the email invitation.');
         await fetchProjectAndApplications();
         setInviteModal({ isOpen: false, application: null });
-        setMeetingData({ meetingDateTime: '', meetingLink: '', message: '' });
+        // Don't reset meetingData yet - we need it for the email
       } else {
         const data = await response.json();
         toast.error(data.error || 'Failed to send invitation');
@@ -179,10 +218,17 @@ export default function ApplicantsPage() {
       );
 
       if (response.ok) {
-        toast.success('Application rejected successfully');
+        // Save data for the rejection email
+        setEmailSuccess({
+          type: 'reject',
+          application: rejectModal.application,
+          meetingData: { reason: rejectReason }
+        });
+
+        toast.success('Application rejected. Consider sending a notification email.');
         await fetchProjectAndApplications();
         setRejectModal({ isOpen: false, application: null });
-        setRejectReason('');
+        // Don't reset rejectReason yet - we need it for the email
       } else {
         const data = await response.json();
         toast.error(data.error || 'Failed to reject application');
@@ -210,10 +256,17 @@ export default function ApplicantsPage() {
       );
 
       if (response.ok) {
-        toast.success('Application accepted successfully! The project has been closed and other applicants have been notified.');
+        // Save data for the acceptance email
+        setEmailSuccess({
+          type: 'accept',
+          application: acceptModal.application,
+          meetingData: { message: acceptMessage }
+        });
+
+        toast.success('Application accepted! Now send the acceptance email.');
         await fetchProjectAndApplications();
         setAcceptModal({ isOpen: false, application: null });
-        setAcceptMessage('');
+        // Don't reset acceptMessage yet - we need it for the email
       } else {
         const data = await response.json();
         console.error('Failed to accept application:', data);
@@ -511,6 +564,145 @@ export default function ApplicantsPage() {
         </div>
       </div>
 
+      {/* Email Success Modal */}
+      {emailSuccess.type && emailSuccess.application && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-babson-green to-babson-green-dark p-6 rounded-t-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="bg-white rounded-full p-2">
+                    <CheckIcon className="w-6 h-6 text-babson-green" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-white">
+                    {emailSuccess.type === 'invite' && 'Interview Scheduled!'}
+                    {emailSuccess.type === 'accept' && 'Application Accepted!'}
+                    {emailSuccess.type === 'reject' && 'Application Updated'}
+                    {emailSuccess.type === 'reschedule' && 'Interview Rescheduled!'}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => {
+                    setEmailSuccess({ type: null, application: null, meetingData: null });
+                    setMeetingData({ meetingDateTime: '', meetingLink: '', message: '' });
+                    setAcceptMessage('');
+                    setRejectReason('');
+                  }}
+                  className="text-white hover:text-gray-200 transition-colors"
+                >
+                  <XMarkIcon className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6">
+              <div className="mb-6">
+                <p className="text-gray-700 text-lg font-medium mb-2">
+                  Send Email Notification
+                </p>
+                <p className="text-gray-600">
+                  Would you like to notify <span className="font-semibold">{(emailSuccess.application.student as any)?.user?.name || 'the student'}</span> about this update?
+                </p>
+              </div>
+
+              {/* Email Details Preview */}
+              <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                <p className="text-sm text-gray-500 mb-1">Email will be sent to:</p>
+                <p className="text-gray-800 font-medium">{(emailSuccess.application.student as any)?.user?.email || 'student@example.com'}</p>
+
+                {emailSuccess.type === 'invite' && emailSuccess.meetingData?.meetingDateTime && (
+                  <div className="mt-3 pt-3 border-t border-gray-200">
+                    <p className="text-sm text-gray-500 mb-1">Meeting scheduled for:</p>
+                    <p className="text-gray-800">{new Date(emailSuccess.meetingData.meetingDateTime).toLocaleString()}</p>
+                    {emailSuccess.meetingData?.meetingLink && (
+                      <>
+                        <p className="text-sm text-gray-500 mb-1 mt-2">Meeting link:</p>
+                        <p className="text-gray-800 text-sm truncate">{emailSuccess.meetingData.meetingLink}</p>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex space-x-3">
+                <EmailButton
+                  template={(() => {
+                    const student = (emailSuccess.application.student as any)?.user;
+                    const owner = (project as any)?.owner?.user;
+                    const companyName = (project as any)?.owner?.companyName || 'Your Company';
+
+                    switch (emailSuccess.type) {
+                      case 'invite':
+                        return generateInterviewInviteEmail({
+                          studentEmail: student?.email || '',
+                          studentName: student?.name || 'Student',
+                          projectTitle: project?.title || '',
+                          companyName,
+                          ownerName: owner?.name || 'Business Owner',
+                          meetingDateTime: emailSuccess.meetingData?.meetingDateTime || '',
+                          meetingLink: emailSuccess.meetingData?.meetingLink,
+                          message: emailSuccess.meetingData?.message
+                        });
+                      case 'accept':
+                        return generateAcceptanceEmail({
+                          studentEmail: student?.email || '',
+                          studentName: student?.name || 'Student',
+                          projectTitle: project?.title || '',
+                          companyName,
+                          ownerName: owner?.name || 'Business Owner',
+                          message: emailSuccess.meetingData?.message
+                        });
+                      case 'reject':
+                        return generateRejectionEmail({
+                          studentEmail: student?.email || '',
+                          studentName: student?.name || 'Student',
+                          projectTitle: project?.title || '',
+                          companyName,
+                          ownerName: owner?.name || 'Business Owner',
+                          reason: emailSuccess.meetingData?.reason
+                        });
+                      default:
+                        return { to: '', subject: '', body: '' };
+                    }
+                  })()}
+                  buttonText="Open Email Client"
+                  variant="primary"
+                  className="flex-1"
+                  onClick={() => {
+                    // Close modal after clicking
+                    setTimeout(() => {
+                      setEmailSuccess({ type: null, application: null, meetingData: null });
+                      setMeetingData({ meetingDateTime: '', meetingLink: '', message: '' });
+                      setAcceptMessage('');
+                      setRejectReason('');
+                    }, 500);
+                  }}
+                />
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setEmailSuccess({ type: null, application: null, meetingData: null });
+                    setMeetingData({ meetingDateTime: '', meetingLink: '', message: '' });
+                    setAcceptMessage('');
+                    setRejectReason('');
+                  }}
+                  className="flex-1"
+                >
+                  Skip for Now
+                </Button>
+              </div>
+
+              <p className="text-xs text-gray-500 text-center mt-4">
+                Your default email client will open with a pre-filled message
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Filters and Search */}
@@ -596,10 +788,20 @@ export default function ApplicantsPage() {
                     <div className="flex-1 mb-4 lg:mb-0 lg:mr-6">
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex items-center">
-                          <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center mr-4">
-                            <span className="text-primary-600 text-lg font-bold">
-                              {application.student?.user?.name?.charAt(0) || 'S'}
-                            </span>
+                          <div className="w-12 h-12 rounded-full flex items-center justify-center mr-4 overflow-hidden">
+                            {application.student?.profilePhotoUrl ? (
+                              <img
+                                src={application.student.profilePhotoUrl}
+                                alt={application.student?.user?.name || 'Student'}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-primary-100 flex items-center justify-center">
+                                <span className="text-primary-600 text-lg font-bold">
+                                  {application.student?.user?.name?.charAt(0) || 'S'}
+                                </span>
+                              </div>
+                            )}
                           </div>
                           <div>
                             <h3 className="text-lg font-semibold text-gray-900">
@@ -755,31 +957,55 @@ export default function ApplicantsPage() {
                         )}
 
                         {canReschedule(application) && (
-                          <Button
-                            size="sm"
-                            onClick={() => {
-                              setRescheduleModal({ isOpen: true, application });
-                              setMeetingData({
-                                meetingDateTime: application.meetingDateTime ? toDateTimeLocalValue(application.meetingDateTime) : '',
-                                meetingLink: '',
-                                message: ''
-                              });
-                              if (application.studentId) {
-                                fetchStudentAvailability(application.studentId);
-                              }
-                            }}
-                            className="bg-blue-600 hover:bg-blue-700"
-                          >
-                            <PencilSquareIcon className="w-4 h-4 mr-2" />
-                            Reschedule
-                          </Button>
+                          <>
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setRescheduleModal({ isOpen: true, application });
+                                setMeetingData({
+                                  meetingDateTime: application.meetingDateTime ? toDateTimeLocalValue(application.meetingDateTime) : '',
+                                  meetingLink: '',
+                                  message: ''
+                                });
+                                if (application.studentId) {
+                                  fetchStudentAvailability(application.studentId);
+                                }
+                              }}
+                              className="bg-blue-600 hover:bg-blue-700"
+                            >
+                              <PencilSquareIcon className="w-4 h-4 mr-2" />
+                              Reschedule
+                            </Button>
+
+                            <EmailButton
+                              template={(() => {
+                                const student = (application.student as any)?.user;
+                                const owner = (project as any)?.owner?.user;
+                                const companyName = (project as any)?.owner?.companyName || 'Your Company';
+
+                                return generateInterviewInviteEmail({
+                                  studentEmail: student?.email || '',
+                                  studentName: student?.name || 'Student',
+                                  projectTitle: project?.title || '',
+                                  companyName,
+                                  ownerName: owner?.name || 'Business Owner',
+                                  meetingDateTime: application.meetingDateTime || '',
+                                  meetingLink: application.meetingLink,
+                                  message: ''
+                                });
+                              })()}
+                              buttonText="Send Reminder"
+                              variant="outline"
+                              size="sm"
+                            />
+                          </>
                         )}
 
                         {canUndoReject(application) && (
                           <Button
                             size="sm"
                             onClick={() => handleUndoReject(application)}
-                            className="bg-orange-600 hover:bg-orange-700"
+                            className="bg-generator-green hover:bg-generator-dark"
                           >
                             <ArrowUturnLeftIcon className="w-4 h-4 mr-2" />
                             Undo Reject
@@ -1335,10 +1561,20 @@ function StudentProfileModal({
               {/* Basic Info */}
               <div>
                 <div className="flex items-center space-x-4 mb-4">
-                  <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center">
-                    <span className="text-primary-600 text-xl font-bold">
-                      {studentData.user?.name?.charAt(0) || 'S'}
-                    </span>
+                  <div className="w-16 h-16 rounded-full flex items-center justify-center overflow-hidden">
+                    {studentData.profile?.profilePhotoUrl ? (
+                      <img
+                        src={studentData.profile.profilePhotoUrl}
+                        alt={studentData.user?.name || 'Student'}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-primary-100 flex items-center justify-center">
+                        <span className="text-primary-600 text-xl font-bold">
+                          {studentData.user?.name?.charAt(0) || 'S'}
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <h4 className="text-lg font-semibold text-gray-900">{studentData.user?.name}</h4>
