@@ -45,13 +45,19 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ Found participant:', participant.name);
 
-    // First, check if user exists in Supabase Auth
-    const { data: userList } = await supabaseAdmin.auth.admin.listUsers({
-      filter: `email.eq.${email.toLowerCase()}`
-    });
+    // First, try to get the user by email
+    let userExists = false;
+    try {
+      const { data: userData, error: getUserError } = await supabaseAdmin.auth.admin.getUserByEmail(email.toLowerCase());
 
-    const userExists = userList && userList.users && userList.users.length > 0;
-    console.log('👤 User exists in auth?', userExists);
+      if (userData && !getUserError) {
+        userExists = true;
+        console.log('👤 User already exists in auth:', userData.user.id);
+      }
+    } catch (error) {
+      // User doesn't exist, which is fine for first-time users
+      console.log('👤 User does not exist yet in auth');
+    }
 
     // If user doesn't exist, create them first
     if (!userExists) {
@@ -69,27 +75,32 @@ export async function POST(request: NextRequest) {
 
       if (createError) {
         console.error('❌ Failed to create user:', createError);
-        return NextResponse.json(
-          { error: 'Failed to create user account. Please try again.' },
-          { status: 500 }
-        );
+        // If user already exists error, that's okay, continue with OTP
+        if (!createError.message?.includes('already been registered')) {
+          return NextResponse.json(
+            { error: 'Failed to create user account. Please try again.' },
+            { status: 500 }
+          );
+        }
+        console.log('⚠️ User already exists, continuing with OTP...');
+        userExists = true;
+      } else {
+        console.log('✅ User created successfully:', newUser.user.id);
       }
-
-      console.log('✅ User created successfully:', newUser.user.id);
     }
 
-    // Now send the OTP email (user now exists)
+    // Now send the OTP email
     console.log('📧 Sending OTP email...');
     const { data, error } = await supabaseAdmin.auth.signInWithOtp({
       email: email.toLowerCase(),
       options: {
-        shouldCreateUser: false, // User already exists or was just created
-        data: userExists ? undefined : {
+        shouldCreateUser: !userExists, // Only create if user doesn't exist
+        data: !userExists ? {
           name: participant.name,
           major: participant.major,
           year: participant.year,
           role: 'student'
-        }
+        } : undefined
       }
     });
 
