@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserFromRequest } from '@/lib/auth';
+import { getUserFromRequest } from '@/lib/auth-edge';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -8,6 +8,8 @@ export async function middleware(request: NextRequest) {
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api/auth') ||
+    pathname.startsWith('/api/test-email') ||
+    pathname === '/test-email' ||
     pathname.includes('.') ||
     pathname === '/' ||
     pathname === '/login' ||
