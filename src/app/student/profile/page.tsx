@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { StudentProfile, User, SKILL_TAGS, AvailabilitySlot } from '@/types';
 import { WeeklyAvailability } from '@/components/WeeklyAvailability';
-import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
+import { ChevronDownIcon, ChevronUpIcon, KeyIcon } from '@heroicons/react/24/outline';
+import toast from 'react-hot-toast';
 
 export default function StudentProfilePage() {
   const [user, setUser] = useState<User | null>(null);
@@ -40,6 +41,15 @@ export default function StudentProfilePage() {
   const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string>('');
   const [availabilityExpanded, setAvailabilityExpanded] = useState(false);
   const [savingPhoto, setSavingPhoto] = useState(false);
+
+  // Password change state
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [changingPassword, setChangingPassword] = useState(false);
 
   // Helper function to format URLs properly
   const formatUrl = (url: string): string => {
@@ -273,6 +283,59 @@ export default function StudentProfilePage() {
     }
   };
 
+  const handlePasswordChange = async () => {
+    // Validate passwords
+    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+      toast.error('Please fill in all password fields');
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast.error('New passwords do not match');
+      return;
+    }
+
+    if (passwordData.newPassword.length < 8) {
+      toast.error('New password must be at least 8 characters');
+      return;
+    }
+
+    if (passwordData.currentPassword === passwordData.newPassword) {
+      toast.error('New password must be different from current password');
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const response = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(passwordData),
+      });
+
+      if (response.ok) {
+        toast.success('Password changed successfully!');
+        setPasswordData({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        });
+        setShowPasswordChange(false);
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Failed to change password');
+      }
+    } catch (error) {
+      console.error('Password change error:', error);
+      toast.error('Failed to change password. Please try again.');
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -457,7 +520,19 @@ export default function StudentProfilePage() {
           {/* Basic Information */}
           <Card>
             <CardHeader>
-              <CardTitle>Basic Information</CardTitle>
+              <CardTitle className="flex items-center justify-between">
+                <span>Basic Information</span>
+                {!showPasswordChange && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowPasswordChange(true)}
+                  >
+                    <KeyIcon className="w-4 h-4 mr-2" />
+                    Change Password
+                  </Button>
+                )}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -526,6 +601,73 @@ export default function StudentProfilePage() {
                   {formData.bio.length}/1000 characters
                 </p>
               </div>
+
+              {/* Password Change Section */}
+              {showPasswordChange && (
+                <div className="mt-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                  <h3 className="text-sm font-medium text-gray-900 mb-4">Change Password</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Current Password
+                      </label>
+                      <input
+                        type="password"
+                        value={passwordData.currentPassword}
+                        onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        placeholder="Enter current password"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        New Password
+                      </label>
+                      <input
+                        type="password"
+                        value={passwordData.newPassword}
+                        onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        placeholder="Enter new password (minimum 8 characters)"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Confirm New Password
+                      </label>
+                      <input
+                        type="password"
+                        value={passwordData.confirmPassword}
+                        onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        placeholder="Confirm new password"
+                      />
+                    </div>
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        onClick={handlePasswordChange}
+                        loading={changingPassword}
+                        disabled={changingPassword}
+                      >
+                        {changingPassword ? 'Changing...' : 'Change Password'}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setShowPasswordChange(false);
+                          setPasswordData({
+                            currentPassword: '',
+                            newPassword: '',
+                            confirmPassword: ''
+                          });
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
