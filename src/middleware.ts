@@ -63,8 +63,13 @@ export async function middleware(request: NextRequest) {
   // Check authentication for protected routes
   const user = await getUserFromRequest(request);
 
-  // Redirect unauthenticated users to login
+  // Redirect unauthenticated users to appropriate login page
   if (!user) {
+    // Redirect to business login for business routes
+    if (pathname.startsWith('/business')) {
+      return NextResponse.redirect(new URL('/business/login', request.url));
+    }
+    // Default to student login for other routes
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
