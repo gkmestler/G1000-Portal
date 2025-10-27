@@ -76,11 +76,11 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto text-center">
           <h1 className="text-5xl md:text-7xl font-bold mb-6 text-generator-dark">
             The G1000 Portal
+            <span className="text-base md:text-lg font-normal text-gray-500 ml-2 align-super">(BETA)</span>
           </h1>
           
           <p className="text-xl md:text-2xl text-gray-600 mb-10 max-w-3xl mx-auto leading-relaxed">
-            The G1000 Portal connects AI forward Babson students with small business owners who have completed 
-            The Generator's AI Innovators Bootcamp, to create opportunities for meaningful AI and automation projects and internships.
+            This student-run networking platform enables small business owners to post AI projects/internship opportunities for Babson students. Babson College does not represent student services.
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
