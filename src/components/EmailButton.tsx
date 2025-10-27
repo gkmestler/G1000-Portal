@@ -33,13 +33,13 @@ export default function EmailButton({
     window.open(mailtoUrl, '_blank');
   };
 
-  // Variant styles
+  // Variant styles - Updated to use generator theme colors
   const variantStyles = {
-    primary: 'bg-babson-green hover:bg-babson-green-dark text-white border-babson-green',
-    secondary: 'bg-gray-600 hover:bg-gray-700 text-white border-gray-600',
-    outline: 'bg-white hover:bg-gray-50 text-gray-700 border-gray-300',
-    success: 'bg-green-600 hover:bg-green-700 text-white border-green-600',
-    danger: 'bg-red-600 hover:bg-red-700 text-white border-red-600'
+    primary: 'bg-generator-green hover:bg-generator-dark text-white border-generator-green shadow-md hover:shadow-lg',
+    secondary: 'bg-gray-600 hover:bg-gray-700 text-white border-gray-600 shadow-md hover:shadow-lg',
+    outline: 'bg-white hover:bg-gray-50 text-gray-700 border-gray-300 shadow-sm hover:shadow-md',
+    success: 'bg-green-600 hover:bg-green-700 text-white border-green-600 shadow-md hover:shadow-lg',
+    danger: 'bg-red-600 hover:bg-red-700 text-white border-red-600 shadow-md hover:shadow-lg'
   };
 
   // Size styles
@@ -62,8 +62,9 @@ export default function EmailButton({
       className={`
         inline-flex items-center justify-center
         font-medium rounded-lg border
-        transition-colors duration-200
-        focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-babson-green
+        transition-all duration-200
+        focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-generator-green
+        disabled:opacity-50 disabled:cursor-not-allowed
         ${variantStyles[variant]}
         ${sizeStyles[size]}
         ${className}
@@ -104,7 +105,7 @@ export function EmailLink({
     <a
       href="#"
       onClick={handleClick}
-      className={`text-babson-green hover:text-babson-green-dark underline inline-flex items-center ${className}`}
+      className={`text-generator-green hover:text-generator-dark underline inline-flex items-center transition-colors duration-200 ${className}`}
     >
       <EnvelopeIcon className="w-4 h-4 mr-1" />
       {linkText}

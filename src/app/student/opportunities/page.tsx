@@ -69,6 +69,16 @@ function CompanyModal({ company, onClose }: CompanyModalProps) {
               {company.contactName && (
                 <p className="text-gray-600 mt-1">Contact: {company.contactName}</p>
               )}
+              {company.user?.email && (
+                <div className="flex items-center text-gray-600 mt-1">
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  <a href={`mailto:${company.user.email}`} className="text-generator-green hover:text-generator-dark underline text-sm">
+                    {company.user.email}
+                  </a>
+                </div>
+              )}
               {company.city && company.state && (
                 <div className="flex items-center text-gray-500 mt-2">
                   <MapPinIcon className="w-4 h-4 mr-1" />
@@ -476,6 +486,13 @@ export default function OpportunitiesPage() {
                                   {opportunity.owner.city}, {opportunity.owner.state}
                                 </p>
                               )}
+                              {opportunity.owner.user?.email && (
+                                <p className="text-xs text-gray-500 truncate">
+                                  <a href={`mailto:${opportunity.owner.user.email}`} className="text-generator-green hover:text-generator-dark underline">
+                                    {opportunity.owner.user.email}
+                                  </a>
+                                </p>
+                              )}
                             </div>
                           </div>
                           <button
@@ -516,14 +533,19 @@ export default function OpportunitiesPage() {
                       </div>
 
                       {/* Compensation */}
-                      {opportunity.compensationType && (
+                      {opportunity.compensationType && opportunity.compensationType !== 'experience' && (
                         <div className="flex items-center space-x-2 text-sm text-gray-600 mb-3">
                           <span>{getCompensationIcon(opportunity.compensationType)}</span>
                           <span className="font-medium">{getCompensationLabel(opportunity.compensationType)}</span>
-                          {opportunity.compensationValue && (
+                          {opportunity.compensationValue && opportunity.compensationValue !== '' ? (
                             <>
                               <span>•</span>
                               <span>{opportunity.compensationValue}</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>•</span>
+                              <span className="text-gray-500">Not specified</span>
                             </>
                           )}
                         </div>
@@ -752,14 +774,19 @@ export default function OpportunitiesPage() {
                               </div>
 
                               {/* Compensation */}
-                              {opportunity.compensationType && (
+                              {opportunity.compensationType && opportunity.compensationType !== 'experience' && (
                                 <div className="flex items-center space-x-2 text-sm text-gray-600 mb-3">
                                   <span>{getCompensationIcon(opportunity.compensationType)}</span>
                                   <span className="font-medium">{getCompensationLabel(opportunity.compensationType)}</span>
-                                  {opportunity.compensationValue && (
+                                  {opportunity.compensationValue && opportunity.compensationValue !== '' ? (
                                     <>
                                       <span>•</span>
                                       <span>{opportunity.compensationValue}</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span>•</span>
+                                      <span className="text-gray-500">Not specified</span>
                                     </>
                                   )}
                                 </div>

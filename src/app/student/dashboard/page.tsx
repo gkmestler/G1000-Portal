@@ -9,7 +9,8 @@ import {
   QuestionMarkCircleIcon,
   PhoneIcon,
   EnvelopeIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  PlayCircleIcon
 } from '@heroicons/react/24/outline';
 
 interface DashboardStats {
@@ -256,6 +257,16 @@ export default function StudentDashboard() {
                 <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 mr-2 flex-shrink-0 mt-0.5" />
                 <p className="text-amber-800">
                   <span className="font-semibold">This is a BETA version.</span> If there are any issues, please contact Gavin Mestler.
+                </p>
+              </div>
+
+              <div className="flex items-start">
+                <PlayCircleIcon className="w-5 h-5 text-amber-600 mr-2 flex-shrink-0 mt-0.5" />
+                <p className="text-amber-800">
+                  <span className="font-semibold">Watch Tutorial:</span>
+                  <a href="https://www.youtube.com/watch?v=xSMx84UMe7E" target="_blank" rel="noopener noreferrer" className="ml-1 hover:underline text-blue-700">
+                    How to Use the G1000 Portal
+                  </a>
                 </p>
               </div>
 

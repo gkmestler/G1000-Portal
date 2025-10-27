@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Project, ApplicationForm, BusinessOwnerProfile } from '@/types';
+import ApplicationEmailModal from '@/components/ApplicationEmailModal';
 import {
   DocumentTextIcon,
   LinkIcon,
@@ -30,12 +31,30 @@ export default function ApplyPage() {
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [showOwnerProfile, setShowOwnerProfile] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [studentInfo, setStudentInfo] = useState<{ name: string; email: string } | null>(null);
 
   useEffect(() => {
     if (params.id) {
       fetchOpportunity();
     }
+    fetchStudentInfo();
   }, [params.id]);
+
+  const fetchStudentInfo = async () => {
+    try {
+      const response = await fetch('/api/student/me');
+      if (response.ok) {
+        const data = await response.json();
+        setStudentInfo({
+          name: data.data.user?.name || 'Student',
+          email: data.data.user?.email || ''
+        });
+      }
+    } catch (error) {
+      console.error('Failed to fetch student info:', error);
+    }
+  };
 
   const fetchOpportunity = async () => {
     try {
@@ -103,7 +122,16 @@ export default function ApplyPage() {
 
       if (response.ok) {
         toast.success('Application submitted successfully!');
-        router.push('/student/applications');
+        // Ensure we have opportunity data before showing modal
+        if (opportunity) {
+          console.log('Setting showEmailModal to true');
+          setShowEmailModal(true);
+        } else {
+          // If no opportunity data, just redirect
+          setTimeout(() => {
+            router.push('/student/applications');
+          }, 1500);
+        }
       } else {
         toast.error(data.error || 'Failed to submit application');
       }
@@ -484,6 +512,27 @@ export default function ApplyPage() {
         onClose={() => setShowOwnerProfile(false)}
         owner={opportunity?.owner}
       />
+
+      {/* Email Notification Modal */}
+      {showEmailModal && opportunity && console.log('Rendering ApplicationEmailModal', { showEmailModal, opportunity: opportunity.title })}
+      {showEmailModal && opportunity && (
+        <ApplicationEmailModal
+          isOpen={true}
+          onClose={() => {
+            setShowEmailModal(false);
+            router.push('/student/applications');
+          }}
+          opportunityTitle={opportunity.title || 'Opportunity'}
+          businessOwnerName={opportunity.owner?.companyName || 'Business Owner'}
+          businessOwnerEmail={opportunity.owner?.user?.email}
+          studentName={studentInfo?.name || 'Student'}
+          onEmailSent={() => {
+            setTimeout(() => {
+              router.push('/student/applications');
+            }, 2000);
+          }}
+        />
+      )}
     </div>
   );
 }

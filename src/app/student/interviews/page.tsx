@@ -66,15 +66,35 @@ export default function InterviewsPage() {
 
   const generateCalendarLink = (interview: Application) => {
     if (!interview.meetingDateTime) return '';
-    
+
     const startDate = parseLocalDateTime(interview.meetingDateTime);
     const endDate = new Date(startDate.getTime() + 60 * 60 * 1000); // 1 hour later
-    
+
+    // Format dates in local time for Google Calendar (YYYYMMDDTHHmmss format)
+    const formatDateForGoogle = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const seconds = String(date.getSeconds()).padStart(2, '0');
+
+      return `${year}${month}${day}T${hours}${minutes}${seconds}`;
+    };
+
+    const startDateFormatted = formatDateForGoogle(startDate);
+    const endDateFormatted = formatDateForGoogle(endDate);
+
     const title = `Interview: ${interview.project?.title}`;
-    const details = `Interview for ${interview.project?.title}`;
-    
-    const googleCalendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${startDate.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')}&details=${encodeURIComponent(details)}`;
-    
+    const details = `Interview for ${interview.project?.title} with Business Owner`;
+    const location = interview.meetingLink ? interview.meetingLink : '';
+
+    let googleCalendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${startDateFormatted}/${endDateFormatted}&details=${encodeURIComponent(details)}`;
+
+    if (location) {
+      googleCalendarUrl += `&location=${encodeURIComponent(location)}`;
+    }
+
     return googleCalendarUrl;
   };
 

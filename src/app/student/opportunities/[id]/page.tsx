@@ -161,9 +161,21 @@ export default function OpportunityDetailsPage() {
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
                 {opportunity.title}
               </h1>
-              <p className="text-gray-600 mb-4">
-                {opportunity.owner?.companyName || 'Business Owner'}
-              </p>
+              <div className="space-y-1 mb-4">
+                <p className="text-gray-800 font-medium">
+                  {opportunity.owner?.companyName || 'Business Owner'}
+                </p>
+                {opportunity.owner?.user?.email && (
+                  <div className="flex items-center text-gray-600">
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    <a href={`mailto:${opportunity.owner.user.email}`} className="text-generator-green hover:text-generator-dark underline">
+                      {opportunity.owner.user.email}
+                    </a>
+                  </div>
+                )}
+              </div>
               <div className="flex flex-wrap gap-2 mb-4">
                 {opportunity.industryTags.map((tag, index) => (
                   <span
@@ -332,6 +344,45 @@ export default function OpportunityDetailsPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Contact Information */}
+            {opportunity.owner && (
+              <Card>
+                <CardContent className="p-6">
+                  <h3 className="font-semibold text-gray-900 mb-3">Contact Information</h3>
+                  <div className="space-y-3">
+                    {opportunity.owner.contactName && (
+                      <div className="flex items-center">
+                        <svg className="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        <span className="text-gray-700">{opportunity.owner.contactName}</span>
+                      </div>
+                    )}
+                    {opportunity.owner.user?.email && (
+                      <div className="flex items-center">
+                        <svg className="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                        <a href={`mailto:${opportunity.owner.user.email}`} className="text-generator-green hover:text-generator-dark underline">
+                          {opportunity.owner.user.email}
+                        </a>
+                      </div>
+                    )}
+                    {opportunity.owner.websiteUrl && (
+                      <div className="flex items-center">
+                        <svg className="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                        </svg>
+                        <a href={opportunity.owner.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-generator-green hover:text-generator-dark underline">
+                          {opportunity.owner.websiteUrl}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Location */}
             <Card>

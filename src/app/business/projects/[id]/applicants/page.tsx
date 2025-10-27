@@ -569,11 +569,11 @@ export default function ApplicantsPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
             {/* Header */}
-            <div className="bg-gradient-to-r from-babson-green to-babson-green-dark p-6 rounded-t-lg">
+            <div className="bg-gradient-to-r from-generator-green to-generator-dark p-6 rounded-t-lg">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <div className="bg-white rounded-full p-2">
-                    <CheckIcon className="w-6 h-6 text-babson-green" />
+                    <CheckIcon className="w-6 h-6 text-generator-green" />
                   </div>
                   <h3 className="text-xl font-semibold text-white">
                     {emailSuccess.type === 'invite' && 'Interview Scheduled!'}

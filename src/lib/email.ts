@@ -1,7 +1,20 @@
+/**
+ * DEPRECATED: Email service utility for SendGrid
+ * This file is kept for reference but is no longer used.
+ * The application now uses manual email sending through mailto: links.
+ * See /src/lib/emailTemplates.ts for the current email implementation.
+ */
+
 // Email service utility for SendGrid
 import sgMail from '@sendgrid/mail';
 
-sgMail.setApiKey(process.env.SENDGRID_API_KEY || 'placeholder-key');
+// Initialize SendGrid with API key
+const apiKey = process.env.SENDGRID_API_KEY;
+if (!apiKey) {
+  console.warn('SENDGRID_API_KEY is not set. Emails will not be sent.');
+} else {
+  sgMail.setApiKey(apiKey);
+}
 
 export interface EmailOptions {
   to: string;
@@ -11,19 +24,40 @@ export interface EmailOptions {
 }
 
 export async function sendEmail({ to, subject, html, text }: EmailOptions) {
+  // Skip if no API key
+  if (!process.env.SENDGRID_API_KEY) {
+    console.warn('Email not sent - SENDGRID_API_KEY not configured');
+    return;
+  }
+
   const msg = {
     to,
-    from: 'noreply@g1000portal.com', // Update with your verified sender
+    from: process.env.SENDGRID_FROM_EMAIL || 'noreply@babson.edu', // Use env variable or default
     subject,
     text: text || '',
     html,
   };
 
   try {
-    await sgMail.send(msg);
+    console.log('Sending email with details:', {
+      to: msg.to,
+      from: msg.from,
+      subject: msg.subject,
+      hasText: !!msg.text,
+      hasHtml: !!msg.html
+    });
+
+    const result = await sgMail.send(msg);
     console.log('Email sent successfully to:', to);
-  } catch (error) {
+    console.log('SendGrid response status:', result[0]?.statusCode);
+    return result;
+  } catch (error: any) {
     console.error('Email sending failed:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      response: error.response?.body
+    });
     throw error;
   }
 }

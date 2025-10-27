@@ -35,6 +35,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if email is in the approved list
+    const { data: approvedEmail } = await supabaseAdmin
+      .from('approved_business_emails')
+      .select('id, is_active')
+      .eq('email', email.toLowerCase())
+      .eq('is_active', true)
+      .single();
+
+    if (!approvedEmail) {
+      return NextResponse.json(
+        {
+          error: 'UNAUTHORIZED_EMAIL',
+          message: 'Your email is not in the approved list. Please contact the administrator.',
+          businessName,
+          contactName,
+          email
+        },
+        { status: 403 }
+      );
+    }
+
     // Check if user already exists
     const { data: existingUser } = await supabaseAdmin
       .from('users')
