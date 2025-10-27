@@ -5,6 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { User, StudentProfile, Application } from '@/types';
 import Link from 'next/link';
+import {
+  QuestionMarkCircleIcon,
+  PhoneIcon,
+  EnvelopeIcon,
+  ExclamationTriangleIcon
+} from '@heroicons/react/24/outline';
 
 interface DashboardStats {
   applicationsSubmitted: number;
@@ -233,6 +239,46 @@ export default function StudentDashboard() {
             </CardContent>
           </Card>
         </div>
+      </div>
+
+      {/* Help Section */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 pb-8">
+        <Card className="bg-amber-50 border-amber-200">
+          <CardHeader>
+            <CardTitle className="flex items-center text-amber-900">
+              <QuestionMarkCircleIcon className="w-6 h-6 mr-2" />
+              Need Help?
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex items-start">
+                <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 mr-2 flex-shrink-0 mt-0.5" />
+                <p className="text-amber-800">
+                  <span className="font-semibold">This is a BETA version.</span> If there are any issues, please contact Gavin Mestler.
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:space-x-6 space-y-2 sm:space-y-0 ml-7">
+                <div className="flex items-center text-amber-800">
+                  <PhoneIcon className="w-4 h-4 mr-2" />
+                  <span className="font-medium">Phone:</span>
+                  <a href="tel:7606817000" className="ml-1 hover:underline">760-681-7000</a>
+                </div>
+
+                <div className="flex items-center text-amber-800">
+                  <EnvelopeIcon className="w-4 h-4 mr-2" />
+                  <span className="font-medium">Email:</span>
+                  <a href="mailto:gmestler1@babson.edu" className="ml-1 hover:underline">gmestler1@babson.edu</a>
+                </div>
+              </div>
+
+              <p className="text-amber-700 text-sm ml-7 font-medium">
+                We will resolve any issues ASAP.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
