@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { getUserFromRequest } from '@/lib/auth';
+import { getUserFromRequest } from '@/lib/auth-edge';
 
 export const dynamic = 'force-dynamic';
 
@@ -113,7 +113,8 @@ export async function GET(
             linkedinUrl: studentProfile?.linkedin_url,
             githubUrl: studentProfile?.github_url,
             major: studentProfile?.major,
-            year: studentProfile?.year
+            year: studentProfile?.year,
+            profilePhotoUrl: studentProfile?.profile_photo_url
           } : null
         };
       })

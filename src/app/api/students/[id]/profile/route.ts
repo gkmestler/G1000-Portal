@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserFromRequest } from '@/lib/auth';
+import { getUserFromRequest } from '@/lib/auth-edge';
 import { supabaseAdmin } from '@/lib/supabase';
 
 console.log('Student profile route file loaded');
@@ -157,6 +157,7 @@ export async function GET(
           githubUrl: profile.github_url,
           personalWebsiteUrl: profile.personal_website_url,
           resumeUrl: profile.resume_url,
+          profilePhotoUrl: profile.profile_photo_url,
           skills: profile.skills || [],
           proofOfWorkUrls: profile.proof_of_work_urls || [],
           availableDays: profile.available_days || [],
