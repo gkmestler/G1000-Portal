@@ -45,69 +45,44 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ Found participant:', participant.name);
 
-    // First, try to get the user by email
-    let userExists = false;
-    try {
-      const { data: userData, error: getUserError } = await supabaseAdmin.auth.admin.getUserByEmail(email.toLowerCase());
+    // Simply use signInWithOtp with shouldCreateUser: true
+    // This will create the user if they don't exist and send OTP in one step
+    console.log('📧 Sending OTP code via Supabase Auth...');
 
-      if (userData && !getUserError) {
-        userExists = true;
-        console.log('👤 User already exists in auth:', userData.user.id);
-      }
-    } catch (error) {
-      // User doesn't exist, which is fine for first-time users
-      console.log('👤 User does not exist yet in auth');
-    }
-
-    // If user doesn't exist, create them first
-    if (!userExists) {
-      console.log('🔨 Creating new user in Supabase Auth...');
-      const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-        email: email.toLowerCase(),
-        email_confirm: false,
-        user_metadata: {
-          name: participant.name,
-          major: participant.major,
-          year: participant.year,
-          role: 'student'
-        }
-      });
-
-      if (createError) {
-        console.error('❌ Failed to create user:', createError);
-        // If user already exists error, that's okay, continue with OTP
-        if (!createError.message?.includes('already been registered')) {
-          return NextResponse.json(
-            { error: 'Failed to create user account. Please try again.' },
-            { status: 500 }
-          );
-        }
-        console.log('⚠️ User already exists, continuing with OTP...');
-        userExists = true;
-      } else {
-        console.log('✅ User created successfully:', newUser.user.id);
-      }
-    }
-
-    // Now send the OTP email
-    console.log('📧 Sending OTP email...');
     const { data, error } = await supabaseAdmin.auth.signInWithOtp({
       email: email.toLowerCase(),
       options: {
-        shouldCreateUser: !userExists, // Only create if user doesn't exist
-        data: !userExists ? {
+        shouldCreateUser: true, // Let Supabase handle user creation
+        data: {
           name: participant.name,
           major: participant.major,
           year: participant.year,
           role: 'student'
-        } : undefined
+        }
       }
     });
 
     if (error) {
       console.error('❌ Supabase OTP error:', error);
+
+      // Check if it's a rate limit error
+      if (error.message?.includes('rate limit') || error.message?.includes('too many') || error.message?.includes('Email rate limit exceeded')) {
+        return NextResponse.json(
+          { error: 'Too many attempts. Please wait 60 seconds and try again.' },
+          { status: 429 }
+        );
+      }
+
+      // Check if it's a confirmation email being sent instead
+      if (error.message?.includes('confirmation') || error.message?.includes('confirm')) {
+        return NextResponse.json(
+          { error: 'Please check your email for a verification link. If you need a code instead, please wait a moment and try again.' },
+          { status: 400 }
+        );
+      }
+
       return NextResponse.json(
-        { error: 'Failed to send verification code. Please try again.' },
+        { error: error.message || 'Failed to send verification code. Please try again.' },
         { status: 500 }
       );
     }

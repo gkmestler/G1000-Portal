@@ -6,18 +6,28 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
-import { BuildingOfficeIcon, EyeIcon, EyeSlashIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { BuildingOfficeIcon, ArrowLeftIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import GeneratorLogo from '@/components/GeneratorLogo';
 import toast from 'react-hot-toast';
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [step, setStep] = useState<'email' | 'code' | 'create-password'>('email');
   const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [hasPassword, setHasPassword] = useState<boolean | null>(null);
+  const [errors, setErrors] = useState<{
+    email?: string;
+    code?: string;
+    password?: string;
+    confirmPassword?: string
+  }>({});
   const [mounted, setMounted] = useState(false);
 
   // Fix hydration mismatch
@@ -35,33 +45,124 @@ function LoginForm() {
     }
   }, [mounted, searchParams]);
 
-  const validateForm = () => {
-    const newErrors: { email?: string; password?: string } = {};
-    
-    if (!email) {
-      newErrors.email = 'Email is required';
-    } else if (!email.includes('@')) {
-      newErrors.email = 'Please enter a valid email';
-    }
-    
-    if (!password) {
-      newErrors.password = 'Password is required';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  const validateEmail = (email: string) => {
+    if (!email) return 'Email is required';
+    if (!email.includes('@')) return 'Please enter a valid email';
+    return '';
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!validateForm()) return;
+  const validateCode = (code: string) => {
+    if (!code) return 'Verification code is required';
+    if (code.length !== 6) return 'Verification code must be 6 digits';
+    if (!/^\d{6}$/.test(code)) return 'Verification code must contain only numbers';
+    return '';
+  };
+
+  const validatePassword = (password: string) => {
+    if (!password) return 'Password is required';
+    if (password.length < 8) return 'Password must be at least 8 characters';
+    return '';
+  };
+
+  const checkUserStatus = async () => {
+    const emailError = validateEmail(email);
+    if (emailError) {
+      setErrors({ email: emailError });
+      return;
+    }
 
     setLoading(true);
     setErrors({});
 
     try {
-      const response = await fetch('/api/auth/login/owner', {
+      const response = await fetch('/api/auth/business/check-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.exists) {
+        // User exists in our database
+        setHasPassword(data.hasPassword);
+        if (!data.isApproved) {
+          setErrors({ email: 'Your business account is awaiting approval. Please contact support.' });
+          setLoading(false);
+          return;
+        }
+        if (!data.hasPassword) {
+          // User exists but no password - send verification code
+          await handleRequestCode();
+        } else {
+          // User has password - stop loading and show password field
+          setLoading(false);
+        }
+      } else {
+        // User doesn't exist in users table - might be first time
+        // Try to send OTP directly (will validate if they're in business_owner_profiles)
+        setHasPassword(false);
+        await handleRequestCode();
+      }
+    } catch {
+      setErrors({ email: 'Network error. Please try again.' });
+      setLoading(false);
+    }
+  };
+
+  const handleRequestCode = async () => {
+    setLoading(true);
+    setErrors({});
+
+    try {
+      const response = await fetch('/api/auth/business/request-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setStep('code');
+        if (mounted) {
+          toast.success('Verification code sent to your email!');
+        }
+      } else {
+        if (response.status === 404) {
+          setErrors({ email: 'Email not found. Please make sure you are registered as a business owner.' });
+        } else if (response.status === 403) {
+          setErrors({ email: 'Your business account is awaiting approval. Please contact support.' });
+        } else {
+          setErrors({ email: data.error || 'Failed to send verification code' });
+        }
+      }
+    } catch {
+      setErrors({ email: 'Network error. Please try again.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const emailError = validateEmail(email);
+    const passwordError = validatePassword(password);
+
+    if (emailError || passwordError) {
+      setErrors({
+        email: emailError,
+        password: passwordError
+      });
+      return;
+    }
+
+    setLoading(true);
+    setErrors({});
+
+    try {
+      const response = await fetch('/api/auth/business/login-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -70,30 +171,138 @@ function LoginForm() {
       const data = await response.json();
 
       if (response.ok) {
-        console.log('Login successful, redirecting to dashboard...');
-        toast.success('Welcome back to G1000 Portal!');
-        // Force a hard navigation to ensure auth state is properly loaded
-        window.location.href = '/business/dashboard';
+        if (mounted) {
+          toast.success('Welcome back to G1000 Portal!');
+        }
+        setTimeout(() => {
+          window.location.href = '/business/dashboard';
+        }, 500);
       } else {
-        if (response.status === 403) {
-          setErrors({ 
-            email: 'Your account is awaiting approval. Please contact support.' 
-          });
-        } else if (response.status === 401) {
-          setErrors({ 
-            password: 'Invalid email or password' 
-          });
+        if (response.status === 401) {
+          setErrors({ password: 'Invalid email or password' });
+        } else if (response.status === 403) {
+          setErrors({ email: 'Your business account is awaiting approval. Please contact support.' });
         } else {
-          setErrors({ 
-            email: data.error || 'Login failed' 
-          });
+          setErrors({ password: data.error || 'Login failed' });
         }
       }
     } catch {
-      setErrors({ email: 'Network error. Please try again.' });
+      setErrors({ password: 'Network error. Please try again.' });
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const codeError = validateCode(code);
+    if (codeError) {
+      setErrors({ code: codeError });
+      return;
+    }
+
+    setLoading(true);
+    setErrors({});
+
+    try {
+      const response = await fetch('/api/auth/business/verify-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Check from the response if user needs to create a password
+        if (!data.hasPassword) {
+          setStep('create-password');
+          toast.success('Verification successful! Please create a password.');
+        } else {
+          if (mounted) {
+            toast.success('Welcome back to G1000 Portal!');
+          }
+          setTimeout(() => {
+            window.location.href = '/business/dashboard';
+          }, 500);
+        }
+      } else {
+        if (response.status === 403) {
+          setErrors({ code: 'Your business account is awaiting approval. Please contact support.' });
+        } else {
+          setErrors({ code: data.error || 'Invalid verification code' });
+        }
+      }
+    } catch {
+      setErrors({ code: 'Network error. Please try again.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      setErrors({ password: passwordError });
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setErrors({ confirmPassword: 'Passwords do not match' });
+      return;
+    }
+
+    setLoading(true);
+    setErrors({});
+
+    try {
+      const response = await fetch('/api/auth/business/set-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        if (mounted) {
+          toast.success('Password created successfully!');
+        }
+        setTimeout(() => {
+          window.location.href = '/business/dashboard';
+        }, 500);
+      } else {
+        setErrors({ password: data.error || 'Failed to create password' });
+      }
+    } catch {
+      setErrors({ password: 'Network error. Please try again.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmitEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (hasPassword === null) {
+      await checkUserStatus();
+    } else if (hasPassword) {
+      await handlePasswordLogin(e);
+    } else {
+      await handleRequestCode();
+    }
+  };
+
+  const handleBackToEmail = () => {
+    setStep('email');
+    setCode('');
+    setPassword('');
+    setConfirmPassword('');
+    setErrors({});
+    setHasPassword(null);
   };
 
   // Don't render until mounted to prevent hydration issues
@@ -167,86 +376,187 @@ function LoginForm() {
         <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
           <Card className="shadow-soft border-gray-100">
           <CardHeader>
-            <CardTitle>Welcome Back</CardTitle>
+            <CardTitle>
+              {step === 'email' && 'Welcome Back'}
+              {step === 'code' && 'Enter Verification Code'}
+              {step === 'create-password' && 'Create Your Password'}
+            </CardTitle>
             <CardDescription>
-              Enter your credentials to access your business dashboard
+              {step === 'email' && (hasPassword ? 'Enter your password to sign in' : 'Sign in to access your business dashboard')}
+              {step === 'code' && `We sent a 6-digit code to ${email}`}
+              {step === 'create-password' && 'Set up a password for future logins'}
             </CardDescription>
           </CardHeader>
 
           <CardContent>
-            {/* Demo Password Notice */}
-            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-start">
-                <svg className="w-5 h-5 text-blue-600 mt-0.5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                </svg>
-                <div>
-                  <p className="text-sm text-blue-800 font-medium">Demo Access</p>
-                  <p className="text-sm text-blue-700 mt-1">
-                    Use the following password for business accounts:
-                  </p>
-                  <p className="text-sm font-mono font-bold text-blue-900 mt-1 bg-blue-100 px-2 py-1 rounded inline-block">
-                    G1000Portal2025!
-                  </p>
-                </div>
-              </div>
-            </div>
+            {step === 'email' ? (
+              <form onSubmit={handleSubmitEmail} className="space-y-6">
+                <Input
+                  label="Business Email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setHasPassword(null); // Reset status when email changes
+                  }}
+                  placeholder="you@company.com"
+                  error={errors.email}
+                  required
+                />
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <Input
-                label="Business Email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@company.com"
-                error={errors.email}
-                required
-              />
-              
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-700">
-                  Password <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    required
-                    className="w-full px-4 py-2.5 pr-12 bg-white border border-gray-200 rounded-xl shadow-sm placeholder:text-gray-400 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-primary-500 focus:ring-primary-500/20 transition-all duration-200"
-                  />
+                {hasPassword && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Password <span className="text-error-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <Input
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Enter your password"
+                        error={errors.password}
+                        required
+                        className="pr-12"
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? (
+                          <EyeSlashIcon className="w-5 h-5" />
+                        ) : (
+                          <EyeIcon className="w-5 h-5" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <Button
+                  type="submit"
+                  className="w-full"
+                  loading={loading}
+                  disabled={!email || (hasPassword && !password)}
+                >
+                  {hasPassword ? 'Sign In' : 'Continue'}
+                </Button>
+
+                {hasPassword && (
                   <button
                     type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors focus:outline-none"
-                    onClick={() => setShowPassword(!showPassword)}
+                    onClick={() => {
+                      setHasPassword(false);
+                      handleRequestCode();
+                    }}
+                    className="w-full text-sm text-generator-green hover:text-generator-dark transition-colors"
                   >
-                    {showPassword ? (
-                      <EyeSlashIcon className="h-5 w-5" />
-                    ) : (
-                      <EyeIcon className="h-5 w-5" />
-                    )}
+                    Sign in with verification code instead
                   </button>
-                </div>
-                {errors.password && (
-                  <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                    </svg>
-                    {errors.password}
-                  </p>
                 )}
-              </div>
-              
-              <Button
-                type="submit"
-                className="w-full"
-                loading={loading}
-                disabled={!email || !password}
-              >
-                Sign In
-              </Button>
-            </form>
+              </form>
+            ) : step === 'code' ? (
+              <form onSubmit={handleVerifyCode} className="space-y-6">
+                <Input
+                  label="Verification Code"
+                  type="text"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="123456"
+                  error={errors.code}
+                  maxLength={6}
+                  required
+                />
+
+                <div className="space-y-3">
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    loading={loading}
+                    disabled={code.length !== 6}
+                  >
+                    Verify Code
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full"
+                    onClick={handleBackToEmail}
+                  >
+                    Use Different Email
+                  </Button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleCreatePassword} className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    New Password <span className="text-error-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="At least 8 characters"
+                      error={errors.password}
+                      required
+                      className="pr-12"
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <EyeSlashIcon className="w-5 h-5" />
+                      ) : (
+                        <EyeIcon className="w-5 h-5" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Confirm Password <span className="text-error-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Enter password again"
+                      error={errors.confirmPassword}
+                      required
+                      className="pr-12"
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    >
+                      {showConfirmPassword ? (
+                        <EyeSlashIcon className="w-5 h-5" />
+                      ) : (
+                        <EyeIcon className="w-5 h-5" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full"
+                  loading={loading}
+                  disabled={!password || !confirmPassword}
+                >
+                  Create Password & Sign In
+                </Button>
+              </form>
+            )}
           </CardContent>
         </Card>
 
